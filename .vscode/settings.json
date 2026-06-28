@@ -1,0 +1,5 @@
+{
+  // Point the Python extension + basedpyright at the backend's virtual environment,
+  // so imports like `fastapi` resolve. Path is relative to this project folder.
+  "python.defaultInterpreterPath": "${workspaceFolder}/backend/.venv/bin/python"
+}
