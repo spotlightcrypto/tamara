@@ -95,9 +95,13 @@ Phase D). Companies are a shared/global cache; `GET /companies/{id}` returns the
 ```
 # --- BUILT (bare-bones) ---
 POST /narratives/{id}/companies
-  body: { ticker: string, name?: string }             # ticker normalized upper-case
+  body: { ticker: string, exchange?: string, name?: string }
   → 201 Company                                        # get-or-creates the company, attaches
-  # Idempotent: re-attaching the same ticker is a no-op. Does NOT hydrate.
+  → 422 if no exchange is given
+  # An exchange is REQUIRED — pass an exchange-qualified ticker ("CRWV:NASDAQ") or a
+  # separate `exchange` field. A bare ticker ("CRWV") is rejected. Both normalized
+  # upper-case. Identity is (ticker, exchange), so the same symbol on two exchanges is
+  # two companies. Idempotent per identity. Does NOT hydrate.
 
 GET  /narratives/{id}/companies
   → 200 [ Company ]                                    # companies attached to the narrative
@@ -116,8 +120,9 @@ POST /companies/{id}/hydrate                            # fetch profile/fundamen
   → 200 CompanyDetail                                 # sets last_hydrated_at. 502 on provider fail.
 ```
 
-`Company`: `{ id, ticker, name, exchange, sector, profile, fundamentals, last_hydrated_at,
-created_at, updated_at }` (profile/fundamentals are null until hydrated).
+`Company`: `{ id, ticker, exchange, symbol, name, sector, profile, fundamentals,
+last_hydrated_at, created_at, updated_at }` — `exchange` is always present; `symbol` is a
+derived field, `"<ticker>:<exchange>"`; profile/fundamentals are null until hydrated.
 `CompanyDetail` (deferred): `Company` + `referenced_in: [ { narrative_id, title } ]`.
 
 ## Agent (current-narrative assistance)

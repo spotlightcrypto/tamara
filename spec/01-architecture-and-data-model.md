@@ -170,14 +170,19 @@ create table narratives (
 -- companies: shared/global cache, hydrated on demand (NOT per-user)
 create table companies (
   id               uuid primary key default gen_random_uuid(),
-  ticker           text unique not null,        -- normalized, e.g. NVDA, BRK-B
+  ticker           text not null,                -- bare symbol, normalized, e.g. NVDA
+  exchange         text not null,                -- e.g. NASDAQ; REQUIRED (a ticker is ambiguous without it)
   name             text not null,
-  exchange         text,
   sector           text,
   profile          jsonb,                        -- description + provider profile blob
   fundamentals     jsonb,                        -- latest fetched financials snapshot
   last_hydrated_at timestamptz                   -- null = never fetched
 );
+-- Identity is the exchange-qualified ticker (the same symbol can trade on
+-- multiple exchanges, e.g. CRWV:NASDAQ). Exchange is required; enforced at the
+-- API (422) and the DB (NOT NULL).
+create unique index companies_ticker_exchange_key on companies (ticker, exchange);
+-- The API exposes a derived `symbol` = "<ticker>:<exchange>" (Pydantic computed field).
 
 -- narrative_companies: many-to-many narrative <-> company
 create table narrative_companies (

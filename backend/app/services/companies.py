@@ -14,17 +14,37 @@ from app.models import Company, CompanyAttach
 from app.services import narratives as narratives_service
 
 
-def _get_or_create_company(db: Client, ticker: str, name: str | None) -> dict:
-    """Find the company by ticker, or create it. Returns the raw company row."""
-    ticker = ticker.strip().upper()  # normalize, e.g. "nvda" -> "NVDA"
+def _parse_symbol(raw_ticker: str, raw_exchange: str | None) -> tuple[str, str | None]:
+    """Normalize an attach request into (ticker, exchange).
+
+    Accepts a bare ticker ("crwv") or an exchange-qualified one ("CRWV:NASDAQ").
+    An explicit `exchange` field is used when the ticker isn't qualified.
+    """
+    raw = raw_ticker.strip().upper()
+    exchange = raw_exchange.strip().upper() if raw_exchange and raw_exchange.strip() else None
+    if ":" in raw:
+        ticker, _, suffix = raw.partition(":")
+        return ticker, (suffix or exchange or None)
+    return raw, exchange
+
+
+def _get_or_create_company(
+    db: Client, ticker: str, exchange: str, name: str | None
+) -> dict:
+    """Find the company by its (ticker, exchange) identity, or create it."""
     existing = (
-        db.table("companies").select("*").eq("ticker", ticker).limit(1).execute()
+        db.table("companies")
+        .select("*")
+        .eq("ticker", ticker)
+        .eq("exchange", exchange)
+        .limit(1)
+        .execute()
     )
     if existing.data:
         return existing.data[0]
     created = (
         db.table("companies")
-        .insert({"ticker": ticker, "name": name or ticker})
+        .insert({"ticker": ticker, "exchange": exchange, "name": name or ticker})
         .execute()
     )
     return created.data[0]
@@ -36,7 +56,9 @@ def attach(db: Client, narrative_id: UUID, data: CompanyAttach) -> Company | Non
     if not narratives_service.owns(db, narrative_id):
         return None
 
-    company = _get_or_create_company(db, data.ticker, data.name)
+    ticker, exchange = _parse_symbol(data.ticker, data.exchange)
+    assert exchange is not None  # guaranteed by CompanyAttach's validator
+    company = _get_or_create_company(db, ticker, exchange, data.name)
 
     already = (
         db.table("narrative_companies")

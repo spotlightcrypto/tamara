@@ -2,59 +2,77 @@
 
 Companies are GLOBAL/shared (no user_id) and we don't expose a delete for them,
 so company rows persist across runs — that's fine, get-or-create is idempotent.
-These tests use real tickers and assert on behavior, never on absolute counts.
-The narrative_companies links cascade-delete with their parent narrative.
+A company's identity is the exchange-qualified (ticker, exchange); an exchange is
+required. Tests assert on behavior, never on absolute counts. narrative_companies
+links cascade-delete with their parent narrative.
 """
 
 MISSING_ID = "00000000-0000-0000-0000-000000000000"
 
 
-def test_attach_company_normalizes_ticker(client, make_narrative):
+def test_attach_qualified_ticker_normalizes(client, make_narrative):
     n = make_narrative()
-    r = client.post(f"/narratives/{n['id']}/companies", json={"ticker": "nvda"})
+    r = client.post(f"/narratives/{n['id']}/companies", json={"ticker": "crwv:nasdaq"})
     assert r.status_code == 201
     company = r.json()
-    assert company["ticker"] == "NVDA"  # upper-cased
-    assert company["name"] == "NVDA"    # defaults to ticker (no hydration yet)
+    assert company["ticker"] == "CRWV"        # upper-cased
+    assert company["exchange"] == "NASDAQ"
+    assert company["symbol"] == "CRWV:NASDAQ"  # derived field
+    assert company["name"] == "CRWV"           # defaults to ticker (no hydration)
     assert company["last_hydrated_at"] is None
 
 
-def test_attach_with_name(client, make_narrative):
+def test_attach_with_separate_exchange_field(client, make_narrative):
     n = make_narrative()
     company = client.post(
-        f"/narratives/{n['id']}/companies", json={"ticker": "VST", "name": "Vistra"}
+        f"/narratives/{n['id']}/companies",
+        json={"ticker": "vst", "exchange": "nyse", "name": "Vistra"},
     ).json()
     assert company["ticker"] == "VST"
+    assert company["exchange"] == "NYSE"
     assert company["name"] == "Vistra"
 
 
-def test_same_ticker_is_one_shared_company(client, make_narrative):
+def test_attach_without_exchange_is_rejected(client, make_narrative):
+    n = make_narrative()
+    # Bare ticker, no exchange anywhere -> 422
+    assert client.post(f"/narratives/{n['id']}/companies", json={"ticker": "NVDA"}).status_code == 422
+
+
+def test_same_ticker_different_exchange_are_distinct(client, make_narrative):
+    n = make_narrative()
+    a = client.post(f"/narratives/{n['id']}/companies", json={"ticker": "DUAL:NASDAQ"}).json()
+    b = client.post(f"/narratives/{n['id']}/companies", json={"ticker": "DUAL:NYSE"}).json()
+    assert a["id"] != b["id"]  # exchange is part of the identity
+
+
+def test_same_symbol_is_one_shared_company(client, make_narrative):
     a = make_narrative()
     b = make_narrative()
-    ca = client.post(f"/narratives/{a['id']}/companies", json={"ticker": "CEG"}).json()
-    cb = client.post(f"/narratives/{b['id']}/companies", json={"ticker": "CEG"}).json()
+    ca = client.post(f"/narratives/{a['id']}/companies", json={"ticker": "CEG:NASDAQ"}).json()
+    cb = client.post(f"/narratives/{b['id']}/companies", json={"ticker": "CEG:NASDAQ"}).json()
     assert ca["id"] == cb["id"]  # same global company row
 
 
 def test_attach_is_idempotent(client, make_narrative):
     n = make_narrative()
-    client.post(f"/narratives/{n['id']}/companies", json={"ticker": "AAPL"})
-    client.post(f"/narratives/{n['id']}/companies", json={"ticker": "AAPL"})
+    client.post(f"/narratives/{n['id']}/companies", json={"ticker": "AAPL:NASDAQ"})
+    client.post(f"/narratives/{n['id']}/companies", json={"ticker": "AAPL:NASDAQ"})
     companies = client.get(f"/narratives/{n['id']}/companies").json()
     assert [c["ticker"] for c in companies].count("AAPL") == 1
 
 
 def test_list_companies(client, make_narrative):
     n = make_narrative()
-    client.post(f"/narratives/{n['id']}/companies", json={"ticker": "MSFT"})
-    client.post(f"/narratives/{n['id']}/companies", json={"ticker": "GOOG"})
+    client.post(f"/narratives/{n['id']}/companies", json={"ticker": "MSFT:NASDAQ"})
+    client.post(f"/narratives/{n['id']}/companies", json={"ticker": "GOOG:NASDAQ"})
     tickers = {c["ticker"] for c in client.get(f"/narratives/{n['id']}/companies").json()}
     assert {"MSFT", "GOOG"} <= tickers
 
 
 def test_detach_company(client, make_narrative):
     n = make_narrative()
-    company = client.post(f"/narratives/{n['id']}/companies", json={"ticker": "AMZN"}).json()
+    company = client.post(f"/narratives/{n['id']}/companies", json={"ticker": "AMZN:NASDAQ"}).json()
     assert client.delete(f"/narratives/{n['id']}/companies/{company['id']}").status_code == 204
     tickers = [c["ticker"] for c in client.get(f"/narratives/{n['id']}/companies").json()]
     assert "AMZN" not in tickers
@@ -62,7 +80,7 @@ def test_detach_company(client, make_narrative):
 
 def test_attach_on_missing_narrative_returns_404(client):
     assert client.post(
-        f"/narratives/{MISSING_ID}/companies", json={"ticker": "NVDA"}
+        f"/narratives/{MISSING_ID}/companies", json={"ticker": "NVDA:NASDAQ"}
     ).status_code == 404
 
 
@@ -73,10 +91,10 @@ def test_attach_requires_ticker(client, make_narrative):
 
 def test_get_company_by_id(client, make_narrative):
     n = make_narrative()
-    company = client.post(f"/narratives/{n['id']}/companies", json={"ticker": "TSLA"}).json()
+    company = client.post(f"/narratives/{n['id']}/companies", json={"ticker": "TSLA:NASDAQ"}).json()
     fetched = client.get(f"/companies/{company['id']}")
     assert fetched.status_code == 200
-    assert fetched.json()["ticker"] == "TSLA"
+    assert fetched.json()["symbol"] == "TSLA:NASDAQ"
 
 
 def test_get_missing_company_returns_404(client):
