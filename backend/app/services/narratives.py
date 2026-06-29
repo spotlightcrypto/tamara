@@ -17,6 +17,20 @@ from supabase import Client
 from app.models import Narrative, NarrativeCreate, NarrativeUpdate
 
 
+def owns(db: Client, narrative_id: UUID) -> bool:
+    """True if the calling user owns this narrative.
+
+    Because `db` is RLS-scoped to the user, the select returns a row only if the
+    narrative is theirs. Child resources (items, notes, sources) use this to
+    return a clean 404 before writing, instead of letting an insert silently
+    fail RLS.
+    """
+    response = (
+        db.table("narratives").select("id").eq("id", str(narrative_id)).limit(1).execute()
+    )
+    return bool(response.data)
+
+
 def list_for_user(db: Client, user_id: UUID) -> list[Narrative]:
     """Return the user's narratives, most recently updated first."""
     response = (

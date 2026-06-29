@@ -18,6 +18,7 @@ from app.models.narratives import (
     NarrativeCreate,
     NarrativeUpdate,
 )
+from app.models.notes import Note, NoteCreate, NoteUpdate
 from app.models.users import CurrentUser
 
 __all__ = [
@@ -30,4 +31,7 @@ __all__ = [
     "Narrative",
     "NarrativeCreate",
     "NarrativeUpdate",
+    "Note",
+    "NoteCreate",
+    "NoteUpdate",
 ]

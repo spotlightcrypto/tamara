@@ -13,15 +13,7 @@ from uuid import UUID
 from supabase import Client
 
 from app.models import Item, ItemCreate, ItemKind, ItemUpdate
-
-
-def _owns_narrative(db: Client, narrative_id: UUID) -> bool:
-    """True if the calling user owns the narrative. Because `db` is RLS-scoped,
-    the select returns a row only if it's theirs."""
-    response = (
-        db.table("narratives").select("id").eq("id", str(narrative_id)).limit(1).execute()
-    )
-    return bool(response.data)
+from app.services import narratives as narratives_service
 
 
 def list_for_narrative(
@@ -39,7 +31,7 @@ def list_for_narrative(
 def create(db: Client, narrative_id: UUID, data: ItemCreate) -> Item | None:
     """Append a new item to the end of its section. Returns None if the parent
     narrative doesn't exist / isn't owned (-> router 404)."""
-    if not _owns_narrative(db, narrative_id):
+    if not narratives_service.owns(db, narrative_id):
         return None
 
     # Next position = (highest current position in this section) + 1, else 0.
