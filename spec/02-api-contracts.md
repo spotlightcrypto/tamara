@@ -89,29 +89,36 @@ DELETE /sources/{source_id}       → 204
 `Source`: `{ id, narrative_id, kind, url, title, excerpt, created_at }`
 
 ## Companies
+**Built bare-bones** (no search, no hydration — see [`06-build-plan.md`](06-build-plan.md)
+Phase D). Companies are a shared/global cache; `GET /companies/{id}` returns the plain
+`Company`, not the enriched `CompanyDetail`, until hydration lands.
 ```
-GET  /companies/search?q=<ticker-or-name>
-  → 200 { items: [ { ticker, name, exchange, id? } ] }   # id present if already in cache
-
+# --- BUILT (bare-bones) ---
 POST /narratives/{id}/companies
-  body: { ticker: string }                            # resolves/creates company, attaches
-  → 201 CompanyChip
-  # Creating the company row (if new) does NOT hydrate it. Attach is cheap.
+  body: { ticker: string, name?: string }             # ticker normalized upper-case
+  → 201 Company                                        # get-or-creates the company, attaches
+  # Idempotent: re-attaching the same ticker is a no-op. Does NOT hydrate.
+
+GET  /narratives/{id}/companies
+  → 200 [ Company ]                                    # companies attached to the narrative
 
 DELETE /narratives/{id}/companies/{company_id}
   → 204                                               # detach (company row persists, shared)
 
 GET  /companies/{id}
-  → 200 CompanyDetail                                 # profile/fundamentals + referenced_in
+  → 200 Company                                        # bare company (no referenced_in yet)
 
-POST /companies/{id}/hydrate
-  → 200 CompanyDetail                                 # user-initiated fetch via EDGAR (+gap fill)
-  # Writes profile/fundamentals, sets last_hydrated_at. Sync. 502 on provider failure.
+# --- DEFERRED ---
+GET  /companies/search?q=<ticker-or-name>              # needs a symbol index — Phase D-search
+  → 200 { items: [ { ticker, name, exchange, id? } ] }
+
+POST /companies/{id}/hydrate                            # fetch profile/fundamentals — Phase D
+  → 200 CompanyDetail                                 # sets last_hydrated_at. 502 on provider fail.
 ```
 
-`CompanyChip`: `{ id, ticker, name }`
-`CompanyDetail`: `{ id, ticker, name, exchange, sector, profile, fundamentals,
-last_hydrated_at, referenced_in: [ { narrative_id, title } ] }`
+`Company`: `{ id, ticker, name, exchange, sector, profile, fundamentals, last_hydrated_at,
+created_at, updated_at }` (profile/fundamentals are null until hydrated).
+`CompanyDetail` (deferred): `Company` + `referenced_in: [ { narrative_id, title } ]`.
 
 ## Agent (current-narrative assistance)
 See [`04-agent.md`](04-agent.md) for behavior/prompts.

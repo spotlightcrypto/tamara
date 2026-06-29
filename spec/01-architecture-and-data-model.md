@@ -287,10 +287,15 @@ create policy items_via_parent on narrative_items
     exists (select 1 from narratives n where n.id = narrative_id and n.user_id = auth.uid())
   );
 
--- companies: shared read for any authenticated user; writes via backend service role only.
+-- companies: shared global cache. AS BUILT (bare-bones): any signed-in user may read AND
+-- insert (so attaching a ticker can create the company row), because the backend currently
+-- uses the user-authed client (anon key + user JWT), not a service-role client.
 alter table companies enable row level security;
-create policy companies_read on companies for select using (auth.role() = 'authenticated');
--- (no insert/update policy -> only the service-role key, used by the backend, may write)
+create policy companies_read   on companies for select to authenticated using (true);
+create policy companies_insert on companies for insert to authenticated with check (true);
+-- DEFERRED (with hydration, Phase D): introduce a service-role client and restrict
+-- inserts/updates to it, so users can't pollute or overwrite the shared cache. Until then,
+-- there is no UPDATE/DELETE policy, so company rows are read/insert-only for users.
 
 -- narrative_companies: gate via the parent narrative.
 alter table narrative_companies enable row level security;

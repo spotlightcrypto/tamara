@@ -6,6 +6,7 @@ of which file a model actually lives in. Add new models to a submodule and list
 them here.
 """
 
+from app.models.companies import Company, CompanyAttach
 from app.models.items import (
     Item,
     ItemCreate,
@@ -22,6 +23,8 @@ from app.models.notes import Note, NoteCreate, NoteUpdate
 from app.models.users import CurrentUser
 
 __all__ = [
+    "Company",
+    "CompanyAttach",
     "CurrentUser",
     "Item",
     "ItemCreate",

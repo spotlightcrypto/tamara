@@ -19,6 +19,28 @@ exists. Phase 0 covers project setup including the Supabase MCP.
 
 ---
 
+## Build log & resequencing (live)
+
+The plan below is the original target order. Actual building has resequenced a few things —
+recorded here so the plan reflects reality:
+
+- ✅ **Done:** Phase 0 (setup, Supabase project, MCP), Phase A (config, Supabase client + DI,
+  local JWT auth via JWKS/ES256), Phase B (narratives CRUD + pytest), **C1** (section items),
+  **C2** (notes), and **D1-lite** (bare-bones companies — see below).
+- ⏸️ **Tabled for later:** **C3 / C4 (sources + citing a source from an item).** Deferred so we
+  can stand up a frontend sooner. The `source_id` column on `narrative_items` and the
+  `company_id` column on `notes` remain deferred until their parent features land.
+- 🔀 **Pulled forward:** a **bare-bones companies** slice (attach/list/detach/get + the
+  `companies` and `narrative_companies` tables) is built *before* the frontend, so the
+  frontend has the full narrative shape (companies included) to render.
+- ➡️ **Next:** the **frontend** (Phase FE-core below) — get a basic UI talking to the backend,
+  then reassess priorities (sources, hydration, agent, intake) based on what the UI surfaces.
+- 🔭 **Deferred within Phase D:** company **search / index** and **data hydration** (prices,
+  fundamentals, profiles for companies/tickers/assets) are explicitly later work, not part of
+  the bare-bones companies slice.
+
+---
+
 ## Phase 0 — Setup & tooling
 - **0.1 Repos & envs.** `backend/` (venv + `uv`/`requirements.txt`, `.env`) and `frontend/`
   (Vite + TS). Hello-world FastAPI route under `uvicorn`; Vite dev server.
@@ -54,28 +76,57 @@ exists. Phase 0 covers project setup including the Supabase MCP.
   *Learn:* routers vs services, async, validation, status codes, testing FastAPI, auth boundary.
 
 ## Phase C — The narrative's pieces
-- **C1** `narrative_items` (bull/bear/catalyst/risk): table + RLS-via-parent + CRUD +
-  reorder + optional `event_date`.
-- **C2** `notes`: table + CRUD scoped to a narrative.
-- **C3** `sources` (manual add): table + `providers/fetch.py` (URL GET → title + excerpt,
-  timeouts/failures handled) + add-by-URL and add-as-text.
-- **C4** Cite a source from an item (`narrative_items.source_id` FK).
+- ✅ **C1** `narrative_items` (bull/bear/catalyst/risk): table + RLS-via-parent + CRUD +
+  reorder + optional `event_date`. **Done.**
+- ✅ **C2** `notes`: table + CRUD scoped to a narrative (owner RLS). **Done.** (`company_id`
+  on notes deferred until companies hydration matters.)
+- ⏸️ **C3 — TABLED** `sources` (manual add): table + `providers/fetch.py` (URL GET → title +
+  excerpt, timeouts/failures handled) + add-by-URL and add-as-text. *Deferred until after the
+  first frontend.* This is the first **external-I/O / `providers/`** work.
+- ⏸️ **C4 — TABLED** Cite a source from an item (`narrative_items.source_id` FK). Depends on
+  C3; the `source_id` column is not added until then.
 - **FE-2 (parallel):** Narrative view — four `SectionEditor`s, Notes panel, Sources panel,
   citation picker.
   *Learn:* enums/one-table-with-a-kind, DRY pattern reuse, `httpx`/HTML parsing, FKs.
 
-## Phase D — Companies & Company view (user-initiated hydration)
-- **D1** `companies` (global) + `narrative_companies` join; `/companies/search`; attach/detach.
-- **D2** `providers/edgar.py` via `edgartools` (≤8 req/s throttle, contact-info User-Agent);
-  resolve ticker → profile + latest fundamentals.
-- **D3** `POST /companies/{id}/hydrate` → fetch, store snapshot, set `last_hydrated_at`
-  (+ `providers/yfin.py` gap-fill, dev-only/gated by `APP_ENV`).
-- **D4** `GET /companies/{id}` → profile/fundamentals + "referenced in" list.
-- **D5 (optional)** `providers/market.py` (FMP) behind the same interface, *after* clearing a
-  display license.
+## Phase D — Companies & Company view
+> Split into a **bare-bones slice (done, built before the frontend)** and the **heavier data
+> work (deferred)**.
+
+- ✅ **D1-lite (done)** — bare-bones companies: `companies` (global, shared) +
+  `narrative_companies` join tables; attach-by-ticker (get-or-create, ticker normalized),
+  list, detach, and `GET /companies/{id}`. Companies RLS: `to authenticated` read + insert
+  (a shared cache; tighten to service-role writes when hydration lands). **No search, no
+  hydration.** *Learned:* many-to-many, shared-data (non-per-user) RLS, get-or-create,
+  idempotent attach.
+- 🔭 **D1-search (deferred)** `/companies/search` + a symbol **index** (Wikipedia S&P 500 list,
+  ticker normalization). The searchable-company function.
+- 🔭 **D2 (deferred)** `providers/edgar.py` via `edgartools` (≤8 req/s throttle, contact-info
+  User-Agent); resolve ticker → profile + latest fundamentals.
+- 🔭 **D3 (deferred)** `POST /companies/{id}/hydrate` → fetch, store snapshot, set
+  `last_hydrated_at` (+ `providers/yfin.py` gap-fill, dev-only). **Hydration of company /
+  ticker / asset data.** Likely introduces the **service-role** Supabase client for shared
+  writes.
+- 🔭 **D4 (deferred)** `GET /companies/{id}` enriched with profile/fundamentals + a
+  "referenced in" list of the user's narratives.
+- 🔭 **D5 (deferred, optional)** `providers/market.py` (FMP) behind the same interface, *after*
+  clearing a display license.
 - **FE-3 (parallel):** Companies panel + Company view with Fetch-data/last-fetched control.
-  *Learn:* many-to-many, shared-data RLS nuance, wrapping a 3rd-party lib, rate limiting, jsonb,
-  joins, the provider abstraction paying off.
+  *Learn:* wrapping a 3rd-party lib, rate limiting, jsonb, joins, the provider abstraction.
+
+## Phase FE-core — First frontend ★ pulled forward (next)
+> Goal: a basic React + TS app talking to the backend, so we can *see* the product and let
+> what it surfaces drive the next backend priorities. See [`05-frontend.md`](05-frontend.md).
+
+- **FE-0 Scaffold.** Vite + React + TS app under `frontend/`; a typed `lib/api.ts` fetch
+  wrapper; Supabase Auth login (simplest working method) attaching the JWT.
+- **FE-1 Narratives list + create**, wired to `GET/POST /narratives`.
+- **FE-2 Narrative view** — title/thesis, the four section-item lists (CRUD + reorder), Notes
+  panel, and Companies chips (attach/detach) — wired to the items/notes/companies endpoints.
+- **FE-3 (thin) Company view** — show the bare-bones company (ticker/name); "hydrate" and
+  "referenced in" arrive with Phase D's deferred work.
+- **Then reassess:** with a working UI, decide what's most valuable next (sources, company
+  hydration/search, the agent, or the intake questionnaire).
 
 ## Phase E — The agent (user-initiated assistance)
 - **E1** `providers/llm/` — the **provider-agnostic LLM gateway**: an `LLMGateway` interface
