@@ -6,8 +6,10 @@ step at a time.
 """
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.auth import CurrentUserDep
+from app.config import settings
 from app.db import SupabaseDep
 from app.models import CurrentUser
 from app.routers.companies import router as companies_router
@@ -18,6 +20,19 @@ from app.routers.notes import router as notes_router
 # `app` is the FastAPI application object. uvicorn looks for this object (by the
 # import path "app.main:app") and serves it.
 app = FastAPI(title="Tamara API")
+
+# CORS: browsers block cross-origin requests unless the server opts in. The Vite
+# dev server runs on a different origin (localhost:5173) than the API
+# (localhost:8000), so we must allow it. In dev we allow localhost; tighten this
+# to the real frontend origin in production.
+_dev_origins = ["http://localhost:5173", "http://127.0.0.1:5173"]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=_dev_origins if settings.app_env == "dev" else [],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # Mount the feature routers onto the app.
 app.include_router(narratives_router)

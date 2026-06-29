@@ -1,14 +1,25 @@
+import { useEffect, useState } from 'react'
+import type { Session } from '@supabase/supabase-js'
+import { supabase } from './lib/supabase'
+import { Login } from './Login'
+import { Narratives } from './Narratives'
+
 function App() {
-  return (
-    <div className="min-h-screen bg-zinc-50 text-zinc-900 flex items-center justify-center">
-      <div className="text-center">
-        <h1 className="text-4xl font-semibold tracking-tight">Tamara</h1>
-        <p className="mt-2 text-zinc-500">
-          Frontend scaffold is live — Tailwind is working.
-        </p>
-      </div>
-    </div>
-  )
+  const [session, setSession] = useState<Session | null>(null)
+  const [ready, setReady] = useState(false)
+
+  useEffect(() => {
+    // Load any existing session, then subscribe to login/logout changes.
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session)
+      setReady(true)
+    })
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, s) => setSession(s))
+    return () => sub.subscription.unsubscribe()
+  }, [])
+
+  if (!ready) return null
+  return session ? <Narratives /> : <Login />
 }
 
 export default App
