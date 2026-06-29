@@ -10,14 +10,16 @@ from fastapi import FastAPI, HTTPException
 from app.auth import CurrentUserDep
 from app.db import SupabaseDep
 from app.models import CurrentUser
+from app.routers.items import router as items_router
 from app.routers.narratives import router as narratives_router
 
 # `app` is the FastAPI application object. uvicorn looks for this object (by the
 # import path "app.main:app") and serves it.
 app = FastAPI(title="Tamara API")
 
-# Mount the narratives endpoints (GET/POST /narratives) onto the app.
+# Mount the feature routers onto the app.
 app.include_router(narratives_router)
+app.include_router(items_router)
 
 
 # A "route": when an HTTP GET request hits the path "/", FastAPI calls this

@@ -10,7 +10,6 @@ Every function takes a `db` that is already authenticated as the calling user
 clearly.
 """
 
-from datetime import datetime, timezone
 from uuid import UUID
 
 from supabase import Client
@@ -70,9 +69,8 @@ def update_for_user(
         # Nothing to change: just return the current row (still 404 if missing).
         return get_for_user(db, user_id, narrative_id)
 
-    # We have no DB trigger for updated_at yet, so the service stamps it.
-    changes["updated_at"] = datetime.now(timezone.utc).isoformat()
-
+    # updated_at is maintained by a DB trigger (set_updated_at), so we don't
+    # stamp it here.
     response = (
         db.table("narratives")
         .update(changes)

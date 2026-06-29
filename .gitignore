@@ -5,6 +5,9 @@
 .env
 *.env.local
 
+# Personal Claude Code settings (the committed .claude/settings.json is shared)
+.claude/settings.local.json
+
 # Python
 __pycache__/
 *.pyc

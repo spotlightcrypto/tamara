@@ -1,16 +1,12 @@
-"""Pydantic models for the API.
+"""Narrative API models.
 
 These are NOT database rows — they're the typed shapes that cross the API
-boundary (what the client sends, what we send back). We deliberately use a
-*different* model for each job:
+boundary. We use a *different* model for each job so the client can never set
+server-owned fields (`id`, `user_id`, timestamps):
 
     NarrativeCreate  -> request body for POST /narratives
     NarrativeUpdate  -> request body for PATCH /narratives/{id} (partial edit)
     Narrative        -> the response we return (incl. server-set fields)
-
-Why split them? The client must never be able to set `id`, `user_id`, or the
-timestamps — the server owns those. Separate models make that impossible by
-construction, and each model documents exactly what's allowed at that step.
 """
 
 from datetime import datetime
@@ -41,24 +37,13 @@ class NarrativeUpdate(BaseModel):
     thesis: str | None = None
 
 
-class CurrentUser(BaseModel):
-    """The authenticated caller, resolved from their bearer token.
-
-    Not a database row — it's the small slice of the Supabase auth user that our
-    code actually needs: their id (which scopes everything they own) and email.
-    """
-
-    id: UUID
-    email: str | None = None
-
-
 class Narrative(BaseModel):
     """What the API returns to the client.
 
     Note the richer types: `id` is a real UUID and the timestamps are real
-    datetimes. Pydantic will validate/coerce incoming values (e.g. a UUID
-    string from the database) into these types, and serialize them back to
-    JSON in standard formats on the way out.
+    datetimes. Pydantic validates/coerces incoming values (e.g. a UUID string
+    from the database) into these types, and serializes them back to JSON in
+    standard formats on the way out.
     """
 
     id: UUID
