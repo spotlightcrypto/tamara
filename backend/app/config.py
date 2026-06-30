@@ -28,6 +28,12 @@ class Settings(BaseSettings):
     supabase_url: str = ""
     supabase_anon_key: str = ""
 
+    # LLM via OpenRouter (OpenAI-compatible gateway to many models). One key;
+    # the model is config-driven so we can swap it without touching code.
+    openrouter_api_key: str = ""
+    openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    llm_model: str = "z-ai/glm-5.2"
+
 
 # A single shared instance, imported wherever config is needed:
 #   from app.config import settings

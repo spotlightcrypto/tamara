@@ -1,9 +1,16 @@
 import { useState } from 'react'
 import { supabase } from './lib/supabase'
+import { Logo } from './Logo'
 
-/** Magic-link login: enter email -> Supabase emails a one-time sign-in link.
- *  Clicking the link returns to the app with a session (the Supabase client
- *  detects it from the URL), and App's auth listener swaps in the app. */
+const btn =
+  'w-full border-2 border-ink bg-acid px-3 py-2.5 font-bold uppercase tracking-wide text-ink ' +
+  'shadow-hard transition-all hover:translate-x-[3px] hover:translate-y-[3px] hover:shadow-none ' +
+  'disabled:opacity-50 disabled:hover:translate-x-0 disabled:hover:translate-y-0 disabled:hover:shadow-hard'
+
+const input =
+  'w-full border-2 border-ink bg-concrete px-3 py-2.5 font-mono outline-none ' +
+  'placeholder:text-muted focus:bg-surface focus:ring-2 focus:ring-acid'
+
 export function Login() {
   const [email, setEmail] = useState('')
   const [sent, setSent] = useState(false)
@@ -24,46 +31,46 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex items-center justify-center px-4">
-      <div className="w-full max-w-sm text-center">
-        <h1 className="text-3xl font-semibold tracking-tight">Tamara</h1>
+    <div className="min-h-screen bg-concrete flex items-center justify-center px-4">
+      <div className="w-full max-w-sm border-2 border-ink bg-surface shadow-hard-lg">
+        <div className="flex items-center justify-between border-b-2 border-ink px-4 py-2">
+          <Logo size={24} />
+          <span className="font-mono text-[0.7rem] uppercase tracking-widest text-muted">●&nbsp;auth</span>
+        </div>
 
-        {sent ? (
-          <>
-            <p className="mt-4 text-zinc-700">Check your email</p>
-            <p className="mt-1 text-sm text-zinc-500">
-              We sent a sign-in link to <span className="font-medium">{email}</span>. Click it
-              to continue.
-            </p>
-            <button
-              onClick={() => setSent(false)}
-              className="mt-4 text-sm text-zinc-500 hover:text-zinc-900"
-            >
-              Use a different email
-            </button>
-          </>
-        ) : (
-          <form onSubmit={sendLink} className="mt-6 space-y-3 text-left">
-            <p className="text-center text-sm text-zinc-500">Sign in with your email</p>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
-              className="w-full rounded-lg border border-zinc-300 px-3 py-2 outline-none focus:border-zinc-900"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-lg bg-zinc-900 text-white py-2 font-medium disabled:opacity-50"
-            >
-              {loading ? 'Sending…' : 'Send sign-in link'}
-            </button>
-          </form>
-        )}
-
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        <div className="p-5">
+          {sent ? (
+            <div>
+              <p className="font-display text-lg font-bold uppercase">Check your email</p>
+              <p className="mt-2 text-sm text-muted">
+                Sign-in link sent to <span className="text-ink">{email}</span>. Click it to continue.
+              </p>
+              <button onClick={() => setSent(false)} className="mt-4 text-sm uppercase tracking-wide underline">
+                Use a different email
+              </button>
+            </div>
+          ) : (
+            <>
+              <p className="mb-4 text-sm uppercase tracking-wide text-muted">
+                // your investment theses, sharpened
+              </p>
+              <form onSubmit={sendLink} className="space-y-3">
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@example.com"
+                  className={input}
+                />
+                <button type="submit" disabled={loading} className={btn}>
+                  {loading ? 'Sending…' : 'Send sign-in link'}
+                </button>
+              </form>
+            </>
+          )}
+          {error && <p className="mt-3 text-sm text-down">{error}</p>}
+        </div>
       </div>
     </div>
   )

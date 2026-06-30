@@ -1,1 +1,38 @@
 @import "tailwindcss";
+
+/* Tamara — ACID BRUTALIST.
+   Concrete canvas, near-black ink, BLACK 2px borders, hard offset shadows,
+   square corners, mono-forward type, one shock accent (acid lime).
+   Swap --color-acid to re-skin. */
+@theme {
+  --font-display: "Space Grotesk Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", ui-monospace, monospace;
+  --font-sans: "JetBrains Mono Variable", ui-monospace, monospace; /* UI is mono */
+
+  --color-concrete: #e4e2db; /* canvas */
+  --color-surface: #fbfaf6;  /* cards */
+  --color-ink: #0c0c0a;      /* near-black: text AND borders */
+  --color-muted: #57544c;
+  --color-acid: #c6f000;     /* the one shock color */
+
+  --color-up: #1f8f3b;
+  --color-down: #d23b3b;
+
+  /* Hard, blur-less offset shadows */
+  --shadow-hard: 4px 4px 0 0 #0c0c0a;
+  --shadow-hard-lg: 6px 6px 0 0 #0c0c0a;
+}
+
+@layer base {
+  body {
+    background-color: var(--color-concrete);
+    color: var(--color-ink);
+    font-family: var(--font-mono);
+    -webkit-font-smoothing: antialiased;
+  }
+  /* Acid text selection — small offputting detail. */
+  ::selection {
+    background: var(--color-acid);
+    color: var(--color-ink);
+  }
+}

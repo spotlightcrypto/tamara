@@ -1,15 +1,16 @@
 import { useEffect, useState } from 'react'
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import type { Session } from '@supabase/supabase-js'
 import { supabase } from './lib/supabase'
 import { Login } from './Login'
-import { Narratives } from './Narratives'
+import { Home } from './Home'
+import { Profile } from './Profile'
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    // Load any existing session, then subscribe to login/logout changes.
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session)
       setReady(true)
@@ -19,7 +20,17 @@ function App() {
   }, [])
 
   if (!ready) return null
-  return session ? <Narratives /> : <Login />
+  if (!session) return <Login />
+
+  return (
+    <BrowserRouter>
+      <Routes>
+        <Route path="/" element={<Home user={session.user} />} />
+        <Route path="/profile" element={<Profile user={session.user} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  )
 }
 
 export default App
