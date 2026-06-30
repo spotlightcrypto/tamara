@@ -77,6 +77,7 @@ def _ingest_article(url: str) -> IngestResult:
         unreachable = True
 
     # Tier 2: [paid fallback slot — Firecrawl/Tavily] would go here, enabled by config.
+    # TODO
 
     # Tier 3: our basic bs4 fetch, if Jina came back thin.
     if len(content.strip()) < _MIN_CONTENT:

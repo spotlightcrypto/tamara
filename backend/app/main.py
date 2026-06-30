@@ -13,6 +13,7 @@ from app.config import settings
 from app.db import SupabaseDep
 from app.models import CurrentUser
 from app.routers.companies import router as companies_router
+from app.routers.intake import router as intake_router
 from app.routers.items import router as items_router
 from app.routers.narratives import router as narratives_router
 from app.routers.notes import router as notes_router
@@ -39,6 +40,7 @@ app.include_router(narratives_router)
 app.include_router(items_router)
 app.include_router(notes_router)
 app.include_router(companies_router)
+app.include_router(intake_router)
 
 
 # A "route": when an HTTP GET request hits the path "/", FastAPI calls this
