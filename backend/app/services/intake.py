@@ -17,14 +17,18 @@ from supabase import Client
 
 from app.models import (
     IngestResult,
+    IntakeAnswerRequest,
     IntakeState,
     Kernel,
     KernelKind,
     KernelSummary,
+    Proposal,
     Question,
 )
 from app.providers import llm
 from app.providers.ingest import ingest_url
+
+MAX_ROUNDS = 3  # question rounds before we synthesize regardless
 
 
 class KernelIngestError(Exception):
@@ -125,3 +129,162 @@ def create_draft(db: Client, user_id: UUID, kernel: Kernel) -> IntakeState:
         round=1,
         questions=questions,
     )
+
+
+class DraftNotFound(Exception):
+    """No draft with that id for the caller (RLS-scoped)."""
+
+
+_SYNTH_SYSTEM = """\
+You are Tamara. Synthesize the KERNEL and the user's answers into a SHARP,
+COMMITTED investment narrative that takes a position.
+
+Produce, matching the schema:
+- title: a concise, assertive title that names the bet.
+- thesis: 2-4 sentences stating the POSITION as a committed directional claim
+  (the bet and why it works), in the user's framing. Take a side; do NOT hedge
+  into a neutral both-sides summary.
+- companies: the names the thesis is about — ticker + exchange (e.g. CEG /
+  NASDAQ), using the user's choices and the kernel. NEVER invent a ticker; if
+  unsure of the exact symbol or exchange, use the most likely and note the
+  uncertainty in open_questions.
+- items: the argument as bull/bear/catalyst/risk points. The BULL case is THE
+  case (the position, foregrounded). bear and risk are the COUNTER — what would
+  break the thesis — not equal-weight hedging. catalysts may carry event_date
+  (ISO date). For each item set cite="kernel" ONLY if the kernel text supports
+  it, else null. Do not fabricate facts, financials, or dates.
+- confidence: low | medium | high — be honest.
+- open_questions: genuinely open threads worth chasing."""
+
+
+def synthesize_narrative(kind: KernelKind, content: str, transcript: list[dict]) -> Proposal:
+    """Turn the kernel + answers into a committed, positioned draft narrative."""
+    messages = [
+        {"role": "system", "content": _SYNTH_SYSTEM},
+        {
+            "role": "user",
+            "content": f'KERNEL (kind={kind.value}):\n"""\n{content[:6000]}\n"""\n\nQ&A:\n{_format_qa(transcript)}',
+        },
+    ]
+    return llm.structured(messages, Proposal, role="synthesis")
+
+
+def answer(db: Client, draft_id: UUID, req: IntakeAnswerRequest) -> IntakeState:
+    """Record this round's answers, then either ask more questions or synthesize."""
+    draft = _load_draft(db, draft_id)
+    if draft["status"] != "collecting":
+        return _state_from_draft(draft)  # already proposed/finalized — idempotent
+
+    kind, content = _kernel_content(draft)
+    transcript = list(draft["transcript"])
+    current_round = draft["round"]
+    transcript.append(
+        {"round": current_round, "answers": [a.model_dump(mode="json") for a in req.answers]}
+    )
+
+    ready = req.finish_now or current_round >= MAX_ROUNDS
+    next_questions: list[Question] | None = None
+    if not ready:
+        question_set = propose_questions(kind, content, transcript)
+        if question_set.ready or not question_set.questions:
+            ready = True
+        else:
+            current_round += 1
+            next_questions = question_set.questions
+            transcript.append(
+                {"round": current_round, "questions": [q.model_dump(mode="json") for q in next_questions]}
+            )
+
+    summary = _kernel_summary(draft, kind)
+
+    if ready:
+        proposal = synthesize_narrative(kind, content, transcript)
+        _update_draft(
+            db,
+            draft_id,
+            {
+                "transcript": transcript,
+                "round": current_round,
+                "status": "proposed",
+                "proposal": proposal.model_dump(mode="json"),
+            },
+        )
+        return IntakeState(
+            draft_id=draft["id"], status="proposed", kernel=summary, round=current_round, proposal=proposal
+        )
+
+    _update_draft(db, draft_id, {"transcript": transcript, "round": current_round})
+    return IntakeState(
+        draft_id=draft["id"], status="collecting", kernel=summary, round=current_round, questions=next_questions
+    )
+
+
+def get_draft(db: Client, draft_id: UUID) -> IntakeState:
+    """Reload a draft's current state (for resume)."""
+    return _state_from_draft(_load_draft(db, draft_id))
+
+
+# --- helpers ---------------------------------------------------------------
+
+def _load_draft(db: Client, draft_id: UUID) -> dict:
+    response = (
+        db.table("narrative_drafts").select("*").eq("id", str(draft_id)).limit(1).execute()
+    )
+    if not response.data:
+        raise DraftNotFound()
+    return response.data[0]
+
+
+def _update_draft(db: Client, draft_id: UUID, changes: dict) -> None:
+    db.table("narrative_drafts").update(changes).eq("id", str(draft_id)).execute()
+
+
+def _kernel_content(draft: dict) -> tuple[KernelKind, str]:
+    kind = KernelKind(draft["kernel_kind"])
+    if draft.get("kernel_raw"):
+        return kind, draft["kernel_raw"]
+    title, excerpt = draft.get("kernel_title"), draft.get("kernel_excerpt") or ""
+    return kind, (f"{title}\n\n{excerpt}" if title else excerpt)
+
+
+def _kernel_summary(draft: dict, kind: KernelKind) -> KernelSummary:
+    excerpt = (draft.get("kernel_excerpt") or draft.get("kernel_raw") or "")[:300]
+    return KernelSummary(kind=kind, title=draft.get("kernel_title"), excerpt=excerpt)
+
+
+def _state_from_draft(draft: dict) -> IntakeState:
+    kind = KernelKind(draft["kernel_kind"])
+    proposal = Proposal.model_validate(draft["proposal"]) if draft.get("proposal") else None
+    questions = None
+    if draft["status"] == "collecting":
+        for turn in reversed(draft["transcript"]):
+            if "questions" in turn:
+                questions = [Question.model_validate(q) for q in turn["questions"]]
+                break
+    return IntakeState(
+        draft_id=draft["id"],
+        status=draft["status"],
+        kernel=_kernel_summary(draft, kind),
+        round=draft["round"],
+        questions=questions,
+        proposal=proposal,
+    )
+
+
+def _format_qa(transcript: list[dict]) -> str:
+    """Render the transcript's questions+answers into readable text for synthesis."""
+    question_text: dict[str, str] = {}
+    lines: list[str] = []
+    for turn in transcript:
+        for q in turn.get("questions", []):
+            question_text[q["id"]] = q["question"]
+        for a in turn.get("answers", []):
+            label = question_text.get(a["question_id"], a["question_id"])
+            selected = ", ".join(a.get("selected", []))
+            free = a.get("free_text")
+            if a.get("skipped"):
+                given = "(skipped)"
+            else:
+                given = selected + (f" — {free}" if free else "") if (selected or free) else "(no answer)"
+            lines.append(f"Q: {label}\nA: {given}")
+    return "\n\n".join(lines) if lines else "(no answers provided)"
