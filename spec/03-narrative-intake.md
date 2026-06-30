@@ -9,6 +9,15 @@ It is **user-initiated and synchronous**: the user is sitting there answering qu
 is not a background agent and does not violate the "no background jobs" guardrail. Each step
 is one (sometimes two) Claude calls.
 
+> **Core principle — narratives take a position.** Intake should sharpen a kernel into a
+> **committed directional thesis** (a bet with a side), not a neutral both-sides summary.
+> *Infer* the implied stance from the kernel and **dress it up** confidently; the synthesized
+> thesis is the position, the bull case is foregrounded as THE case, and bear/risk are the
+> *counter* (what breaks it), not equal-weight hedging. **Infer, don't fabricate** — never
+> invent facts, tickers, or a stance the kernel doesn't support. The committed position is an
+> editable default ("until indicated otherwise"); questions exist to *pin or establish* the
+> position when the kernel is vague. (See the `narratives-take-a-position` design note.)
+
 ---
 
 ## 1. What the kernel can be

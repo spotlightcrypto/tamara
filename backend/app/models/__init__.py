@@ -7,6 +7,23 @@ them here.
 """
 
 from app.models.companies import Company, CompanyAttach
+from app.models.intake import (
+    Answer,
+    Confidence,
+    IngestReason,
+    IngestResult,
+    IntakeAnswerRequest,
+    IntakeStart,
+    IntakeState,
+    Kernel,
+    KernelKind,
+    KernelSummary,
+    Proposal,
+    ProposalCompany,
+    ProposalItem,
+    Question,
+    QuestionOption,
+)
 from app.models.items import (
     Item,
     ItemCreate,
@@ -23,14 +40,29 @@ from app.models.notes import Note, NoteCreate, NoteUpdate
 from app.models.users import CurrentUser
 
 __all__ = [
+    "Answer",
     "Company",
     "CompanyAttach",
+    "Confidence",
     "CurrentUser",
+    "IngestReason",
+    "IngestResult",
+    "IntakeAnswerRequest",
+    "IntakeStart",
+    "IntakeState",
     "Item",
     "ItemCreate",
     "ItemKind",
     "ItemMove",
     "ItemUpdate",
+    "Kernel",
+    "KernelKind",
+    "KernelSummary",
+    "Proposal",
+    "ProposalCompany",
+    "ProposalItem",
+    "Question",
+    "QuestionOption",
     "Narrative",
     "NarrativeCreate",
     "NarrativeUpdate",
