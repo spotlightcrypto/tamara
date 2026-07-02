@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { formatDate, timeAgo } from './lib/time'
 import type { NarrativeWithCompanies } from './lib/types'
 
@@ -9,7 +10,10 @@ export function NarrativeCard({
   creatorEmail?: string
 }) {
   return (
-    <article className="border-2 border-ink bg-surface shadow-hard">
+    <Link
+      to={`/narratives/${n.id}`}
+      className="block border-2 border-ink bg-surface shadow-hard transition-all hover:-translate-x-[2px] hover:-translate-y-[2px] hover:shadow-hard-lg"
+    >
       <div className="p-4">
         <h2 className="font-display text-xl font-bold tracking-tight">{n.title}</h2>
         {n.thesis && (
@@ -33,6 +37,6 @@ export function NarrativeCard({
         <span>created {formatDate(n.created_at)}</span>
         <span>updated {timeAgo(n.updated_at)}</span>
       </div>
-    </article>
+    </Link>
   )
 }
