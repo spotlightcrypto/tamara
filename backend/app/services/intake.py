@@ -10,23 +10,28 @@ Step 2 builds the front of the pipeline:
 Synthesis and the answer loop come in later steps.
 """
 
+from collections import defaultdict
 from uuid import UUID
 
 from pydantic import BaseModel
 from supabase import Client
 
 from app.models import (
+    CompanyAttach,
     IngestResult,
     IntakeAnswerRequest,
     IntakeState,
     Kernel,
     KernelKind,
     KernelSummary,
+    NarrativeCreate,
     Proposal,
     Question,
 )
 from app.providers import llm
 from app.providers.ingest import ingest_url
+from app.services import companies as companies_service
+from app.services import narratives as narratives_service
 
 MAX_ROUNDS = 3  # question rounds before we synthesize regardless
 
@@ -222,6 +227,63 @@ def answer(db: Client, draft_id: UUID, req: IntakeAnswerRequest) -> IntakeState:
 def get_draft(db: Client, draft_id: UUID) -> IntakeState:
     """Reload a draft's current state (for resume)."""
     return _state_from_draft(_load_draft(db, draft_id))
+
+
+def finalize(db: Client, user_id: UUID, draft_id: UUID, proposal: Proposal) -> UUID:
+    """Promote the (user-edited) proposal into a real narrative + items + companies
+    + notes, and mark the draft finalized. Idempotent on an already-finalized draft.
+
+    Note: not atomic across statements (PostgREST has no multi-statement txn); a DB
+    function would make it transactional later. Source rows / item citations land
+    once the sources feature (C3/C4) exists — for now the kernel lives on the draft.
+    """
+    draft = _load_draft(db, draft_id)
+    if draft["status"] == "finalized" and draft.get("narrative_id"):
+        return UUID(draft["narrative_id"])  # already done
+
+    # 1. the narrative
+    narrative = narratives_service.create_for_user(
+        db, user_id, NarrativeCreate(title=proposal.title, thesis=proposal.thesis)
+    )
+    nid = narrative.id
+
+    # 2. items (bull/bear/catalyst/risk), batched with position per section
+    position: dict[str, int] = defaultdict(int)
+    item_rows = []
+    for item in proposal.items:
+        kind = item.kind.value
+        item_rows.append({
+            "narrative_id": str(nid),
+            "kind": kind,
+            "body": item.body,
+            "event_date": item.event_date.isoformat() if item.event_date else None,
+            "position": position[kind],
+        })
+        position[kind] += 1
+    if item_rows:
+        db.table("narrative_items").insert(item_rows).execute()
+
+    # 3. companies (get-or-create + attach by exchange-qualified ticker)
+    for company in proposal.companies:
+        try:
+            companies_service.attach(
+                db, nid, CompanyAttach(ticker=company.ticker, exchange=company.exchange, name=company.name)
+            )
+        except Exception:
+            continue  # skip a malformed company rather than fail the whole finalize
+
+    # 4. open questions -> notes
+    note_rows = [
+        {"user_id": str(user_id), "narrative_id": str(nid), "body": q.strip()}
+        for q in proposal.open_questions
+        if q.strip()
+    ]
+    if note_rows:
+        db.table("notes").insert(note_rows).execute()
+
+    # 5. mark the draft finalized
+    _update_draft(db, draft_id, {"status": "finalized", "narrative_id": str(nid)})
+    return nid
 
 
 # --- helpers ---------------------------------------------------------------

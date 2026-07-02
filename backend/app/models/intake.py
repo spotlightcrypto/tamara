@@ -123,6 +123,12 @@ class IntakeAnswerRequest(BaseModel):
     finish_now: bool = False  # skip remaining questions, synthesize now
 
 
+class IntakeFinalize(BaseModel):
+    """The user-edited proposal, accepted -> promote to a real narrative."""
+
+    proposal: Proposal
+
+
 class KernelSummary(BaseModel):
     kind: KernelKind
     title: str | None = None

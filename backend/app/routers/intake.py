@@ -5,7 +5,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 
 from app.auth import CurrentUserDep, UserDbDep
-from app.models import IntakeAnswerRequest, IntakeStart, IntakeState
+from app.models import IntakeAnswerRequest, IntakeFinalize, IntakeStart, IntakeState
 from app.services import intake as service
 from app.services.intake import DraftNotFound, KernelIngestError
 
@@ -52,3 +52,16 @@ async def get_intake(
         return service.get_draft(db, draft_id)
     except DraftNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "draft not found")
+
+
+@router.post("/narratives/intake/{draft_id}/finalize", status_code=status.HTTP_201_CREATED)
+async def finalize_intake(
+    draft_id: UUID, data: IntakeFinalize, user: CurrentUserDep, db: UserDbDep
+) -> dict[str, str]:
+    """Accept the (edited) proposal: create the real narrative + items + companies
+    + notes, and mark the draft finalized. Returns the new narrative id."""
+    try:
+        narrative_id = service.finalize(db, user.id, draft_id, data.proposal)
+    except DraftNotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "draft not found")
+    return {"narrative_id": str(narrative_id)}

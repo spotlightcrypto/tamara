@@ -63,6 +63,18 @@ def unauth_client():
 
 
 @pytest.fixture
+def db(auth: dict):
+    """A Supabase client authed as the test user — for direct DB checks/cleanup
+    in tests (e.g. inspecting a draft's transcript)."""
+    return make_user_client(auth["token"])
+
+
+@pytest.fixture
+def user_id(auth: dict) -> str:
+    return auth["user_id"]
+
+
+@pytest.fixture
 def make_narrative(client: TestClient):
     """Factory that creates narratives and cleans them up after the test,
     even if the test fails (cleanup runs after the `yield`)."""
