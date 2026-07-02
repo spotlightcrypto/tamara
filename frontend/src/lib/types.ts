@@ -13,6 +13,25 @@ export interface NarrativeCreate {
   thesis?: string
 }
 
+export interface Item {
+  id: string
+  narrative_id: string
+  kind: 'bull' | 'bear' | 'catalyst' | 'risk'
+  body: string
+  event_date: string | null
+  position: number
+  created_at: string
+  updated_at: string
+}
+
+export interface Note {
+  id: string
+  narrative_id: string
+  body: string
+  created_at: string
+  updated_at: string
+}
+
 export interface Company {
   id: string
   ticker: string

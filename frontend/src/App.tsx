@@ -5,6 +5,7 @@ import { supabase } from './lib/supabase'
 import { Login } from './Login'
 import { Home } from './Home'
 import { Profile } from './Profile'
+import { NarrativeDetail } from './NarrativeDetail'
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -27,6 +28,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home user={session.user} />} />
         <Route path="/profile" element={<Profile user={session.user} />} />
+        <Route path="/narratives/:id" element={<NarrativeDetail />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
