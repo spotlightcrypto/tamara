@@ -2,12 +2,24 @@ import { supabase } from './supabase'
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:8000'
 
-/**
- * Typed fetch wrapper for our backend.
- *
- * It attaches the current Supabase access token as a Bearer header on every
- * request, so the backend can validate it and scope data to the user (RLS).
- */
+/** An HTTP error that carries the backend's structured `detail` (e.g. the
+ *  intake 422 { reason, message }). */
+export class ApiError extends Error {
+  status: number
+  detail: unknown
+  constructor(status: number, detail: unknown) {
+    const message =
+      detail && typeof detail === 'object' && 'message' in detail
+        ? String((detail as { message: unknown }).message)
+        : typeof detail === 'string'
+          ? detail
+          : `Request failed (${status})`
+    super(message)
+    this.status = status
+    this.detail = detail
+  }
+}
+
 async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const {
     data: { session },
@@ -15,17 +27,14 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   const headers = new Headers(init.headers)
   headers.set('Content-Type', 'application/json')
-  if (session?.access_token) {
-    headers.set('Authorization', `Bearer ${session.access_token}`)
-  }
+  if (session?.access_token) headers.set('Authorization', `Bearer ${session.access_token}`)
 
   const response = await fetch(`${BASE_URL}${path}`, { ...init, headers })
 
   if (!response.ok) {
-    const detail = await response.json().catch(() => null)
-    throw new Error(detail?.detail ?? `Request failed (${response.status})`)
+    const body = await response.json().catch(() => null)
+    throw new ApiError(response.status, body?.detail ?? body)
   }
-  // 204 No Content has no body.
   if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
