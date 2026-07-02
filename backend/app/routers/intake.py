@@ -5,7 +5,13 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 
 from app.auth import CurrentUserDep, UserDbDep
-from app.models import IntakeAnswerRequest, IntakeFinalize, IntakeStart, IntakeState
+from app.models import (
+    IntakeAnswerRequest,
+    IntakeFinalize,
+    IntakeRegenerate,
+    IntakeStart,
+    IntakeState,
+)
 from app.services import intake as service
 from app.services.intake import DraftNotFound, KernelIngestError
 
@@ -54,12 +60,25 @@ async def get_intake(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "draft not found")
 
 
+@router.post("/narratives/intake/{draft_id}/regenerate")
+async def regenerate_intake(
+    draft_id: UUID, data: IntakeRegenerate, user: CurrentUserDep, db: UserDbDep
+) -> IntakeState:
+    """Re-synthesize the proposal from the current (edited) version plus the
+    user's free-text instructions. Returns the revised proposal."""
+    try:
+        return service.regenerate(db, draft_id, data.proposal, data.instructions)
+    except DraftNotFound:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "draft not found")
+
+
 @router.post("/narratives/intake/{draft_id}/finalize", status_code=status.HTTP_201_CREATED)
 async def finalize_intake(
     draft_id: UUID, data: IntakeFinalize, user: CurrentUserDep, db: UserDbDep
 ) -> dict[str, str]:
-    """Accept the (edited) proposal: create the real narrative + items + companies
-    + notes, and mark the draft finalized. Returns the new narrative id."""
+    """Accept the (edited) proposal: create the real narrative (markdown body +
+    positioning) + companies + sources, and mark the draft finalized. Returns the
+    new narrative id."""
     try:
         narrative_id = service.finalize(db, user.id, draft_id, data.proposal)
     except DraftNotFound:

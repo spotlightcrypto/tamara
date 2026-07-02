@@ -1,18 +1,24 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Plus, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Plus, RefreshCw, X } from 'lucide-react'
 import { api, ApiError } from './lib/api'
-import { MAX_COMPANIES } from './lib/types'
-import type { Answer, IntakeState, ItemKind, Proposal, ProposalCompany, Question } from './lib/types'
+import { MAX_COMPANIES, POSITIONING_LABELS } from './lib/types'
+import type { Answer, IntakeState, Proposal, ProposalCompany, Question } from './lib/types'
+import { MarkdownEditor } from './MarkdownEditor'
 
 type Stage = 'processing' | 'questions' | 'proposal' | 'error'
-const KINDS: ItemKind[] = ['bull', 'bear', 'catalyst', 'risk']
+type Phase = 'reading' | 'thinking' | 'synthesizing'
 
-const PROC_MESSAGES: Record<string, string[]> = {
+const PROC_MESSAGES: Record<Phase, string[]> = {
   reading: ['Reading the kernel', 'Pulling signal from noise', 'Framing the position', 'Drafting sharp questions'],
   thinking: ['Taking your answers', 'Sharpening the position', 'Deciding what else to ask'],
   synthesizing: ['Weighing the bull case', 'Stress-testing the bear', 'Resolving tickers', 'Committing to a position'],
 }
+
+// Roughly how long we expect each phase to take. Each step gets an equal slice
+// so every message shows exactly once, then we hold on the last (cursor keeps
+// blinking) until the real response lands.
+const PHASE_TOTAL_MS: Record<Phase, number> = { reading: 9000, thinking: 7000, synthesizing: 14000 }
 
 const acidBtn =
   'inline-flex items-center gap-1.5 border-2 border-ink bg-acid px-4 py-2 font-bold uppercase tracking-wide ' +
@@ -25,23 +31,28 @@ const autoField =
 export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClose: () => void }) {
   const navigate = useNavigate()
   const [stage, setStage] = useState<Stage>('processing')
-  const [phase, setPhase] = useState<'reading' | 'thinking' | 'synthesizing'>('reading')
+  const [phase, setPhase] = useState<Phase>('reading')
   const [msgIdx, setMsgIdx] = useState(0)
   const [draftId, setDraftId] = useState<string | null>(null)
   const [round, setRound] = useState(1)
   const [questions, setQuestions] = useState<Question[]>([])
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState<Record<string, Answer>>({})
+  const [answeredEver, setAnsweredEver] = useState(false)
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [addCompany, setAddCompany] = useState('')
+  const [regenInstructions, setRegenInstructions] = useState('')
   const [error, setError] = useState<{ reason?: string; message: string } | null>(null)
 
-  // cycle processing messages
+  // Advance the processing messages once — each shows for an equal slice of the
+  // phase's estimated duration, then we hold on the last (the blinking cursor
+  // keeps the sense of motion) until the response arrives.
   useEffect(() => {
     if (stage !== 'processing') return
     setMsgIdx(0)
     const msgs = PROC_MESSAGES[phase]
-    const t = setInterval(() => setMsgIdx((i) => (i + 1) % msgs.length), 1400)
+    const per = PHASE_TOTAL_MS[phase] / msgs.length
+    const t = setInterval(() => setMsgIdx((i) => Math.min(i + 1, msgs.length - 1)), per)
     return () => clearInterval(t)
   }, [stage, phase])
 
@@ -77,6 +88,7 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
   async function start() {
     setPhase('reading')
     setStage('processing')
+    setAnsweredEver(false)
     const text = kernelText.trim()
     const isUrl = /^https?:\/\/\S+$/i.test(text)
     try {
@@ -95,9 +107,11 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
     const next = q.multi_select
       ? cur.includes(label) ? cur.filter((x) => x !== label) : [...cur, label]
       : cur.includes(label) ? [] : [label]
+    if (next.length) setAnsweredEver(true)
     setAnswers((a) => ({ ...a, [q.id]: { question_id: q.id, selected: next, free_text: a[q.id]?.free_text } }))
   }
   function setFreeText(q: Question, text: string) {
+    if (text.trim()) setAnsweredEver(true)
     setAnswers((a) => ({ ...a, [q.id]: { question_id: q.id, selected: a[q.id]?.selected ?? [], free_text: text } }))
   }
 
@@ -123,6 +137,22 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
         { proposal },
       )
       navigate(`/narratives/${narrative_id}`)
+    } catch (e) {
+      fail(e)
+    }
+  }
+
+  async function regenerate() {
+    if (!proposal || !regenInstructions.trim()) return
+    setPhase('synthesizing')
+    setStage('processing')
+    try {
+      const s = await api.post<IntakeState>(`/narratives/intake/${draftId}/regenerate`, {
+        proposal,
+        instructions: regenInstructions.trim(),
+      })
+      setRegenInstructions('')
+      apply(s)
     } catch (e) {
       fail(e)
     }
@@ -197,6 +227,7 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
             onNext={() => setStep((s) => s + 1)}
             onContinue={() => submitAnswers(false)}
             onSkipAll={() => submitAnswers(true)}
+            canSkip={answeredEver}
           />
         )}
         {stage === 'questions' && questions.length === 0 && (
@@ -209,11 +240,22 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
         {/* PROPOSAL — editable */}
         {stage === 'proposal' && proposal && (
           <div className="space-y-4 p-4">
-            <div className="text-right text-[0.7rem] font-bold uppercase tracking-widest text-muted">
-              confidence: {proposal.confidence}
-            </div>
+            {/* Title */}
             <textarea rows={1} value={proposal.title} onChange={(e) => P({ title: e.target.value })}
               className={`${autoField} font-display text-lg font-bold`} />
+
+            {/* Positioning — auto-generated stance label, editable to anything */}
+            <div className="flex items-center gap-2">
+              <span className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">Positioning</span>
+              <input list="positioning-labels" value={proposal.positioning}
+                onChange={(e) => P({ positioning: e.target.value })}
+                className="w-40 border-2 border-ink bg-acid px-2 py-0.5 font-mono text-sm font-bold uppercase outline-none focus:ring-2 focus:ring-ink" />
+              <datalist id="positioning-labels">
+                {POSITIONING_LABELS.map((l) => <option key={l} value={l} />)}
+              </datalist>
+            </div>
+
+            {/* Thesis */}
             <textarea rows={3} value={proposal.thesis} onChange={(e) => P({ thesis: e.target.value })} className={autoField} />
 
             <div>
@@ -266,46 +308,28 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
               )}
             </div>
 
-            {KINDS.map((kind) => (
-              <div key={kind}>
-                <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">{kind}</div>
-                <div className="mt-1.5 space-y-1.5">
-                  {proposal.items.map((it, i) =>
-                    it.kind === kind ? (
-                      <div key={i} className="flex gap-2">
-                        <textarea rows={2} value={it.body}
-                          onChange={(e) => P({ items: proposal.items.map((x, j) => (j === i ? { ...x, body: e.target.value } : x)) })}
-                          className={`${autoField} text-sm`} />
-                        <button onClick={() => P({ items: proposal.items.filter((_, j) => j !== i) })}
-                          className="h-fit shrink-0 border-2 border-ink px-1.5 py-1 hover:bg-acid">
-                          <X size={13} strokeWidth={3} />
-                        </button>
-                      </div>
-                    ) : null,
-                  )}
-                  <button onClick={() => P({ items: [...proposal.items, { kind, body: '' }] })}
-                    className="inline-flex items-center gap-1 text-xs font-bold uppercase text-muted hover:text-ink">
-                    <Plus size={13} strokeWidth={3} /> add
-                  </button>
-                </div>
+            {/* The whole argument — bull/bear/catalyst/risk/open questions — as
+                one editable markdown doc. */}
+            <div>
+              <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">Document</div>
+              <div className="mt-1.5">
+                <MarkdownEditor value={proposal.body_md} onChange={(v) => P({ body_md: v })} />
               </div>
-            ))}
+            </div>
 
-            {proposal.open_questions.length > 0 && (
-              <div>
-                <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">Open questions</div>
-                <ul className="mt-1.5 space-y-1">
-                  {proposal.open_questions.map((q, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm text-muted">
-                      <button onClick={() => P({ open_questions: proposal.open_questions.filter((_, j) => j !== i) })} className="mt-0.5">
-                        <X size={12} strokeWidth={3} />
-                      </button>
-                      <span>{q}</span>
-                    </li>
-                  ))}
-                </ul>
+            {/* Ask the agent to revise, given the current version + instructions */}
+            <div className="border-2 border-dashed border-ink p-3">
+              <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">
+                Regenerate with instructions
               </div>
-            )}
+              <textarea rows={2} value={regenInstructions}
+                onChange={(e) => setRegenInstructions(e.target.value)}
+                placeholder="e.g. sharpen the bear case, add a valuation angle, make it more aggressive…"
+                className="mt-1.5 w-full resize-y border-2 border-ink bg-concrete px-3 py-2 font-mono text-sm outline-none placeholder:text-muted focus:bg-surface focus:ring-2 focus:ring-acid" />
+              <button onClick={regenerate} disabled={!regenInstructions.trim()} className={`mt-2 ${plainBtn}`}>
+                <RefreshCw size={14} strokeWidth={2.5} /> Regenerate
+              </button>
+            </div>
 
             <div className="sticky bottom-0 -mx-4 -mb-4 flex gap-2 border-t-2 border-ink bg-surface px-4 py-3">
               <button onClick={finalize} className={acidBtn}>Create narrative</button>
@@ -319,7 +343,7 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
 }
 
 function QuestionStep({
-  q, index, total, answer, onToggle, onFreeText, onBack, onNext, onContinue, onSkipAll,
+  q, index, total, answer, onToggle, onFreeText, onBack, onNext, onContinue, onSkipAll, canSkip,
 }: {
   q: Question
   index: number
@@ -331,6 +355,7 @@ function QuestionStep({
   onNext: () => void
   onContinue: () => void
   onSkipAll: () => void
+  canSkip: boolean
 }) {
   const sel = answer?.selected ?? []
   const isLast = index === total - 1
@@ -363,7 +388,10 @@ function QuestionStep({
           <ArrowLeft size={15} strokeWidth={2.5} /> Back
         </button>
         <div className="flex gap-2">
-          <button onClick={onSkipAll} className={plainBtn}>Skip &amp; generate</button>
+          <button onClick={onSkipAll} disabled={!canSkip}
+            title={canSkip ? undefined : 'Answer at least one question first'} className={plainBtn}>
+            Skip &amp; generate
+          </button>
           {isLast ? (
             <button onClick={onContinue} className={acidBtn}>Generate <ArrowRight size={16} strokeWidth={2.5} /></button>
           ) : (

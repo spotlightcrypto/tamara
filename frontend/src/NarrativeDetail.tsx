@@ -3,20 +3,13 @@ import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { api } from './lib/api'
 import { Header } from './Header'
+import { Markdown } from './Markdown'
 import { formatDate, timeAgo } from './lib/time'
-import type { Company, Item, ItemKind, Narrative, Note, Source } from './lib/types'
-
-const SECTIONS: { kind: ItemKind; label: string }[] = [
-  { kind: 'bull', label: 'Bull case' },
-  { kind: 'bear', label: 'Bear case' },
-  { kind: 'catalyst', label: 'Catalysts' },
-  { kind: 'risk', label: 'Risks' },
-]
+import type { Company, Narrative, Note, Source } from './lib/types'
 
 export function NarrativeDetail() {
   const { id } = useParams<{ id: string }>()
   const [narrative, setNarrative] = useState<Narrative | null>(null)
-  const [items, setItems] = useState<Item[]>([])
   const [companies, setCompanies] = useState<Company[]>([])
   const [sources, setSources] = useState<Source[]>([])
   const [notes, setNotes] = useState<Note[]>([])
@@ -30,15 +23,13 @@ export function NarrativeDetail() {
   useEffect(() => {
     ;(async () => {
       try {
-        const [n, its, cos, srcs, nts] = await Promise.all([
+        const [n, cos, srcs, nts] = await Promise.all([
           api.get<Narrative>(`/narratives/${id}`),
-          api.get<Item[]>(`/narratives/${id}/items`),
           api.get<Company[]>(`/narratives/${id}/companies`),
           api.get<Source[]>(`/narratives/${id}/sources`),
           api.get<Note[]>(`/narratives/${id}/notes`),
         ])
         setNarrative(n)
-        setItems(its)
         setCompanies(cos)
         setSources(srcs)
         setNotes(nts)
@@ -98,12 +89,9 @@ export function NarrativeDetail() {
         {narrative && (
           <>
             <div className="mt-4 flex items-start justify-between gap-3">
-              <h1 className="font-display text-3xl font-bold tracking-tight">
-                {narrative.title}
-              </h1>
+              <h1 className="font-display text-3xl font-bold tracking-tight">{narrative.title}</h1>
               {/* Owner-only status: only the owner can load this narrative (RLS),
-                  so reaching this page means you own it. Status is plain text;
-                  the retire/reactivate action is a small text link beneath it. */}
+                  so reaching this page means you own it. */}
               <div className="mt-1.5 shrink-0 text-right font-mono text-[0.68rem] uppercase tracking-wide">
                 <div className={narrative.is_active ? 'text-ink' : 'text-muted'}>
                   {narrative.is_active ? '● Active' : '○ Inactive'}
@@ -117,25 +105,31 @@ export function NarrativeDetail() {
                 </button>
               </div>
             </div>
-            {companies.length > 0 && (
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {companies.map((c) => (
-                  <Link
-                    key={c.id}
-                    to={`/companies/${c.id}`}
-                    className="border-2 border-ink bg-surface px-2 py-0.5 font-mono text-xs font-bold transition-all hover:bg-acid"
-                  >
-                    {c.symbol}
-                  </Link>
-                ))}
-              </div>
-            )}
-            {narrative.thesis && (
-              <p className="mt-4 max-w-prose leading-relaxed">{narrative.thesis}</p>
-            )}
+
+            <div className="mt-3 flex flex-wrap items-center gap-1.5">
+              {narrative.positioning && (
+                <span className="border-2 border-ink bg-acid px-2 py-0.5 font-mono text-xs font-bold uppercase">
+                  {narrative.positioning}
+                </span>
+              )}
+              {companies.map((c) => (
+                <Link
+                  key={c.id}
+                  to={`/companies/${c.id}`}
+                  className="border-2 border-ink bg-surface px-2 py-0.5 font-mono text-xs font-bold transition-all hover:bg-acid"
+                >
+                  {c.symbol}
+                </Link>
+              ))}
+            </div>
+
+            {/* Timestamps up top, under the tickers */}
+            <p className="mt-2 font-mono text-[0.68rem] uppercase tracking-wide text-muted">
+              created {formatDate(narrative.created_at)} · updated {timeAgo(narrative.updated_at)}
+            </p>
 
             {sources.length > 0 && (
-              <div className="mt-4 flex flex-wrap items-center gap-2">
+              <div className="mt-3 flex flex-wrap items-center gap-2">
                 <span className="font-mono text-[0.62rem] font-bold uppercase tracking-widest text-muted">
                   Sources
                 </span>
@@ -155,36 +149,16 @@ export function NarrativeDetail() {
               </div>
             )}
 
-            <div className="mt-8 space-y-4">
-              {SECTIONS.map(({ kind, label }) => {
-                const pts = items
-                  .filter((i) => i.kind === kind)
-                  .sort((a, b) => a.position - b.position)
-                return (
-                  <section key={kind} className="border-2 border-ink bg-surface shadow-hard">
-                    <div className="border-b-2 border-ink bg-acid px-3 py-1 text-xs font-bold uppercase tracking-widest">
-                      {label} · {pts.length}
-                    </div>
-                    <ul className="space-y-2 p-3">
-                      {pts.length === 0 && (
-                        <li className="text-xs uppercase tracking-wide text-muted">—</li>
-                      )}
-                      {pts.map((it) => (
-                        <li key={it.id} className="text-sm leading-relaxed">
-                          <span className="mr-1 text-acid">▸</span>
-                          {it.body}
-                          {it.event_date && (
-                            <span className="ml-1 font-mono text-xs text-muted">
-                              ({it.event_date})
-                            </span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </section>
-                )
-              })}
-            </div>
+            {narrative.thesis && (
+              <p className="mt-4 max-w-prose leading-relaxed">{narrative.thesis}</p>
+            )}
+
+            {/* The body as one rendered markdown document */}
+            {narrative.body_md && (
+              <div className="mt-6 border-2 border-ink bg-surface p-5 shadow-hard">
+                <Markdown>{narrative.body_md}</Markdown>
+              </div>
+            )}
 
             {/* Notes — post-publication commentary, added here after the narrative exists. */}
             <section className="mt-4 border-2 border-ink bg-surface shadow-hard">
@@ -210,15 +184,10 @@ export function NarrativeDetail() {
                 </form>
                 <ul className="space-y-2">
                   {notes.length === 0 && (
-                    <li className="text-xs uppercase tracking-wide text-muted">
-                      No notes yet.
-                    </li>
+                    <li className="text-xs uppercase tracking-wide text-muted">No notes yet.</li>
                   )}
                   {notes.map((n) => (
-                    <li
-                      key={n.id}
-                      className="border-l-2 border-ink pl-3 text-sm leading-relaxed"
-                    >
+                    <li key={n.id} className="border-l-2 border-ink pl-3 text-sm leading-relaxed">
                       {n.body}
                       <span className="ml-2 font-mono text-[0.65rem] uppercase tracking-wide text-muted">
                         {timeAgo(n.created_at)}
@@ -228,10 +197,6 @@ export function NarrativeDetail() {
                 </ul>
               </div>
             </section>
-
-            <p className="mt-6 font-mono text-[0.68rem] uppercase tracking-wide text-muted">
-              created {formatDate(narrative.created_at)} · updated {timeAgo(narrative.updated_at)}
-            </p>
           </>
         )}
       </main>

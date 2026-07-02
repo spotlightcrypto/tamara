@@ -11,7 +11,6 @@ Synthesis and the answer loop come in later steps.
 """
 
 import re
-from collections import defaultdict
 from uuid import UUID
 
 from pydantic import BaseModel
@@ -156,23 +155,32 @@ Produce, matching the schema:
 - thesis: 2-4 sentences stating the POSITION as a committed directional claim
   (the bet and why it works), in the user's framing. Take a side; do NOT hedge
   into a neutral both-sides summary.
+- positioning: ONE stance label capturing direction AND intensity, chosen from:
+  megabull, permabull, normiebull, megabear, ultrabear. Pick the one that best
+  fits the thesis's conviction.
 - companies: the names the thesis is DIRECTLY about — ticker + exchange (e.g.
   CEG / NASDAQ), using the user's choices and the kernel. Include every company
   the thesis genuinely turns on (up to 8), not just one, but do not pad with
   loosely-related names. NEVER invent a ticker; if unsure of the exact symbol or
-  exchange, use the most likely and note the uncertainty in open_questions.
+  exchange, use the most likely and flag the uncertainty in the Open questions.
 - suggested_companies: up to 6 PROXIMATE peers the user might also want to add —
   competitors, suppliers, customers, or pure-play beneficiaries adjacent to the
   thesis — that are NOT central enough to commit to `companies`. Each with a
   one-line `reason`. Never duplicate anything already in `companies`. Same
   ticker rules (never invent).
-- items: the argument as bull/bear/catalyst/risk points. The BULL case is THE
-  case (the position, foregrounded). bear and risk are the COUNTER — what would
-  break the thesis — not equal-weight hedging. catalysts may carry event_date
-  (ISO date). For each item set cite="kernel" ONLY if the kernel text supports
-  it, else null. Do not fabricate facts, financials, or dates.
-- confidence: low | medium | high — be honest.
-- open_questions: genuinely open threads worth chasing."""
+- body_md: the full argument as ONE markdown document, formatted with these
+  section headings in this order:
+    ## Bull
+    ## Bear
+    ## Catalysts
+    ## Risks
+    ## Open questions
+  Under each heading use `- ` bullet points. The BULL case is THE case (the
+  position, foregrounded, the most developed section). Bear and Risks are the
+  COUNTER — what would break the thesis — not equal-weight hedging. Catalysts may
+  note dates inline. Open questions are genuinely open threads. Use **bold** for
+  the few load-bearing phrases. Do NOT fabricate facts, financials, or dates;
+  omit a section only if there is genuinely nothing honest to put in it."""
 
 
 def synthesize_narrative(kind: KernelKind, content: str, transcript: list[dict]) -> Proposal:
@@ -185,6 +193,34 @@ def synthesize_narrative(kind: KernelKind, content: str, transcript: list[dict])
         },
     ]
     return llm.structured(messages, Proposal, role="synthesis")
+
+
+def regenerate(db: Client, draft_id: UUID, current: Proposal, instructions: str) -> IntakeState:
+    """Re-synthesize the proposal, given the user's current edited version plus
+    free-text instructions for what to change. Feeds the current proposal back in
+    as context so the model revises rather than starting from scratch."""
+    draft = _load_draft(db, draft_id)
+    kind, content = _kernel_content(draft)
+    transcript = list(draft["transcript"])
+    messages = [
+        {"role": "system", "content": _SYNTH_SYSTEM},
+        {
+            "role": "user",
+            "content": (
+                f'KERNEL (kind={kind.value}):\n"""\n{content[:6000]}\n"""\n\n'
+                f"Q&A:\n{_format_qa(transcript)}\n\n"
+                f"CURRENT DRAFT (revise this, keep what still holds):\n"
+                f"{current.model_dump_json(indent=2)}\n\n"
+                f"REVISION INSTRUCTIONS:\n{instructions.strip()}"
+            ),
+        },
+    ]
+    proposal = llm.structured(messages, Proposal, role="synthesis")
+    _update_draft(db, draft_id, {"proposal": proposal.model_dump(mode="json"), "status": "proposed"})
+    summary = _kernel_summary(draft, kind)
+    return IntakeState(
+        draft_id=draft["id"], status="proposed", kernel=summary, round=draft["round"], proposal=proposal
+    )
 
 
 def answer(db: Client, draft_id: UUID, req: IntakeAnswerRequest) -> IntakeState:
@@ -254,29 +290,20 @@ def finalize(db: Client, user_id: UUID, draft_id: UUID, proposal: Proposal) -> U
     if draft["status"] == "finalized" and draft.get("narrative_id"):
         return UUID(draft["narrative_id"])  # already done
 
-    # 1. the narrative
+    # 1. the narrative — content lives in the markdown body, with a stance label
     narrative = narratives_service.create_for_user(
-        db, user_id, NarrativeCreate(title=proposal.title, thesis=proposal.thesis)
+        db,
+        user_id,
+        NarrativeCreate(
+            title=proposal.title,
+            thesis=proposal.thesis,
+            body_md=proposal.body_md,
+            positioning=proposal.positioning,
+        ),
     )
     nid = narrative.id
 
-    # 2. items (bull/bear/catalyst/risk), batched with position per section
-    position: dict[str, int] = defaultdict(int)
-    item_rows = []
-    for item in proposal.items:
-        kind = item.kind.value
-        item_rows.append({
-            "narrative_id": str(nid),
-            "kind": kind,
-            "body": item.body,
-            "event_date": item.event_date.isoformat() if item.event_date else None,
-            "position": position[kind],
-        })
-        position[kind] += 1
-    if item_rows:
-        db.table("narrative_items").insert(item_rows).execute()
-
-    # 3. companies (get-or-create + attach by exchange-qualified ticker), capped
+    # 2. companies (get-or-create + attach by exchange-qualified ticker), capped
     #    at MAX_COMPANIES — a narrative is about at most 8 companies.
     for company in proposal.companies[:MAX_COMPANIES]:
         try:
@@ -286,7 +313,7 @@ def finalize(db: Client, user_id: UUID, draft_id: UUID, proposal: Proposal) -> U
         except Exception:
             continue  # skip a malformed company rather than fail the whole finalize
 
-    # 4. sources — record the kernel's link(s) so the narrative shows its origin.
+    # 3. sources — record the kernel's link(s) so the narrative shows its origin.
     for url, title in _kernel_sources(draft):
         try:
             sources_service.add(db, nid, url, title)
@@ -294,11 +321,10 @@ def finalize(db: Client, user_id: UUID, draft_id: UUID, proposal: Proposal) -> U
             continue
 
     # NOTE: we deliberately do NOT create notes here. Notes are post-publication
-    # commentary the user adds *after* a narrative exists — not intake output. The
-    # proposal's open_questions stay on the draft row (proposal jsonb) for later
-    # surfacing; they aren't lost.
+    # commentary the user adds *after* a narrative exists — not intake output.
+    # Open questions live inside the markdown body, so nothing is lost.
 
-    # 5. mark the draft finalized
+    # 4. mark the draft finalized
     _update_draft(db, draft_id, {"status": "finalized", "narrative_id": str(nid)})
     return nid
 

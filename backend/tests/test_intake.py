@@ -6,14 +6,11 @@ against real Supabase (like the rest of our suite).
 """
 
 from app.models import (
-    Confidence,
     IngestReason,
     IngestResult,
-    ItemKind,
     KernelKind,
     Proposal,
     ProposalCompany,
-    ProposalItem,
     Question,
     QuestionOption,
 )
@@ -36,13 +33,9 @@ CANNED_QUESTIONS = QuestionSet(
 CANNED_PROPOSAL = Proposal(
     title="Test Thesis",
     thesis="Long the thing.",
+    positioning="megabull",
     companies=[ProposalCompany(ticker="NVDA", exchange="NASDAQ", name="NVIDIA")],
-    items=[
-        ProposalItem(kind=ItemKind.bull, body="up point"),
-        ProposalItem(kind=ItemKind.bear, body="down point"),
-    ],
-    confidence=Confidence.high,
-    open_questions=["verify customer concentration"],
+    body_md="## Bull\n- up point\n\n## Bear\n- down point",
 )
 
 
@@ -115,17 +108,16 @@ def test_finalize_creates_narrative_and_children_idempotent(client, db, monkeypa
     assert r.status_code == 201
     nid = r.json()["narrative_id"]
 
-    narr = db.table("narratives").select("title").eq("id", nid).execute().data[0]
-    items = db.table("narrative_items").select("kind").eq("narrative_id", nid).execute().data
+    narr = db.table("narratives").select("title,body_md,positioning").eq("id", nid).execute().data[0]
     companies = client.get(f"/narratives/{nid}/companies").json()
     notes = db.table("notes").select("body").eq("narrative_id", nid).execute().data
     draft = db.table("narrative_drafts").select("status,narrative_id").eq("id", did).execute().data[0]
 
     assert narr["title"] == "Test Thesis"
-    assert {i["kind"] for i in items} == {"bull", "bear"}
+    assert narr["positioning"] == "megabull"
+    assert "## Bull" in narr["body_md"] and "up point" in narr["body_md"]
     assert [c["symbol"] for c in companies] == ["NVDA:NASDAQ"]
-    # Notes are post-publication only — finalize must NOT seed them from
-    # the proposal's open_questions.
+    # Notes are post-publication only — finalize must NOT seed any.
     assert len(notes) == 0
     assert draft["status"] == "finalized" and draft["narrative_id"] == nid
 
@@ -181,6 +173,31 @@ def test_resume_get_draft(client, db, monkeypatch):
     body = client.get(f"/narratives/intake/{did}").json()
     assert body["status"] == "collecting" and body["draft_id"] == did
     assert body["questions"][0]["header"] == "Direction"
+    _delete_draft(db, did)
+
+
+def test_regenerate_revises_proposal(client, db, monkeypatch):
+    """Regenerate feeds the current proposal + instructions back to synthesis and
+    returns the revised proposal (persisted on the draft)."""
+    state = _start(client, monkeypatch)
+    did = state["draft_id"]
+    proposal = client.post(
+        f"/narratives/intake/{did}/answer",
+        json={"answers": [{"question_id": "q_dir", "selected": ["Long"]}], "finish_now": True},
+    ).json()["proposal"]
+
+    revised = CANNED_PROPOSAL.model_copy(update={"title": "Revised Thesis"})
+    monkeypatch.setattr("app.services.intake.llm.structured", lambda *a, **k: revised)
+
+    r = client.post(
+        f"/narratives/intake/{did}/regenerate",
+        json={"proposal": proposal, "instructions": "make the title sharper"},
+    )
+    assert r.status_code == 200
+    assert r.json()["proposal"]["title"] == "Revised Thesis"
+
+    saved = db.table("narrative_drafts").select("proposal").eq("id", did).execute().data[0]
+    assert saved["proposal"]["title"] == "Revised Thesis"
     _delete_draft(db, did)
 
 

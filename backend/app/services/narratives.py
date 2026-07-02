@@ -107,6 +107,8 @@ def create_for_user(db: Client, user_id: UUID, data: NarrativeCreate) -> Narrati
         "user_id": str(user_id),
         "title": data.title,
         "thesis": data.thesis,
+        "body_md": data.body_md,
+        "positioning": data.positioning,
     }
     response = db.table("narratives").insert(payload).execute()
     # insert returns the inserted rows; we created exactly one.

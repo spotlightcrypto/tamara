@@ -80,10 +80,9 @@ class Answer(BaseModel):
 
 # --- Synthesized proposal --------------------------------------------------
 
-class Confidence(str, Enum):
-    low = "low"
-    medium = "medium"
-    high = "high"
+# The auto-generated stance labels the agent picks from. Stored on the narrative
+# and freely editable by the user, so this is guidance, not a hard enum.
+POSITIONING_LABELS = ["megabull", "permabull", "normiebull", "megabear", "ultrabear"]
 
 
 class ProposalCompany(BaseModel):
@@ -105,18 +104,20 @@ MAX_COMPANIES = 8  # a narrative is about at most this many companies
 
 class Proposal(BaseModel):
     """The committed, directional draft narrative. The thesis takes a position;
-    the bull case is THE case; bear/risk are the counter (what breaks it)."""
+    the body is one markdown doc grouping the bull case (THE case), the bear/risk
+    counter, catalysts, and open questions."""
 
     title: str
     thesis: str
+    # An auto-generated stance label from POSITIONING_LABELS, editable to anything.
+    positioning: str = "normiebull"
     # The companies the thesis is directly about (1..MAX_COMPANIES).
     companies: list[ProposalCompany] = []
     # Proximate / possibly-relevant peers the agent offers for the user to ADD —
     # not committed to the thesis, just candidates surfaced in the review step.
     suggested_companies: list[ProposalCompany] = []
-    items: list[ProposalItem] = []
-    confidence: Confidence = Confidence.medium
-    open_questions: list[str] = []
+    # The full narrative body as an editable markdown document.
+    body_md: str = ""
 
 
 # --- API request / response shapes ----------------------------------------
@@ -134,6 +135,13 @@ class IntakeFinalize(BaseModel):
     """The user-edited proposal, accepted -> promote to a real narrative."""
 
     proposal: Proposal
+
+
+class IntakeRegenerate(BaseModel):
+    """Re-run synthesis using the current edited proposal + free-text instructions."""
+
+    proposal: Proposal
+    instructions: str = Field(min_length=1, max_length=2000)
 
 
 class KernelSummary(BaseModel):

@@ -4,6 +4,8 @@ export interface Narrative {
   id: string
   title: string
   thesis: string
+  body_md: string
+  positioning: string | null
   is_active: boolean
   created_at: string
   updated_at: string
@@ -85,7 +87,6 @@ export interface Answer {
 }
 
 export type ItemKind = 'bull' | 'bear' | 'catalyst' | 'risk'
-export type Confidence = 'low' | 'medium' | 'high'
 
 export interface ProposalCompany {
   ticker: string
@@ -94,24 +95,23 @@ export interface ProposalCompany {
   reason?: string | null
 }
 
-export interface ProposalItem {
-  kind: ItemKind
-  body: string
-  event_date?: string | null
-  cite?: string | null
-}
-
 export interface Proposal {
   title: string
   thesis: string
+  positioning: string
   companies: ProposalCompany[]
   suggested_companies: ProposalCompany[]
-  items: ProposalItem[]
-  confidence: Confidence
-  open_questions: string[]
+  body_md: string
 }
 
 export const MAX_COMPANIES = 8
+export const POSITIONING_LABELS = [
+  'megabull',
+  'permabull',
+  'normiebull',
+  'megabear',
+  'ultrabear',
+] as const
 
 export interface KernelSummary {
   kind: string
