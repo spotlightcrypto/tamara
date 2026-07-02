@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Plus, X } from 'lucide-react'
 import { api, ApiError } from './lib/api'
-import type { Answer, IntakeState, ItemKind, Proposal, Question } from './lib/types'
+import { MAX_COMPANIES } from './lib/types'
+import type { Answer, IntakeState, ItemKind, Proposal, ProposalCompany, Question } from './lib/types'
 
 type Stage = 'processing' | 'questions' | 'proposal' | 'error'
 const KINDS: ItemKind[] = ['bull', 'bear', 'catalyst', 'risk']
@@ -129,6 +130,19 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
 
   const P = (patch: Partial<Proposal>) => setProposal((p) => (p ? { ...p, ...patch } : p))
 
+  const coKey = (c: ProposalCompany) => `${c.ticker}:${c.exchange}`.toUpperCase()
+
+  // Add a company to the committed set (from a suggestion or manual entry),
+  // respecting the 8-company cap and de-duping; drop it from the suggestions.
+  function addCompanyObj(c: ProposalCompany) {
+    if (!proposal || proposal.companies.length >= MAX_COMPANIES) return
+    if (proposal.companies.some((x) => coKey(x) === coKey(c))) return
+    P({
+      companies: [...proposal.companies, c],
+      suggested_companies: proposal.suggested_companies.filter((x) => coKey(x) !== coKey(c)),
+    })
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4" onMouseDown={onClose}>
       <div
@@ -203,10 +217,15 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
             <textarea rows={3} value={proposal.thesis} onChange={(e) => P({ thesis: e.target.value })} className={autoField} />
 
             <div>
-              <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">Companies</div>
+              <div className="flex items-baseline justify-between">
+                <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">Companies</div>
+                <div className="font-mono text-[0.65rem] uppercase tracking-wide text-muted">
+                  {proposal.companies.length} / {MAX_COMPANIES}
+                </div>
+              </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 {proposal.companies.map((c, i) => (
-                  <span key={`${c.ticker}:${c.exchange}:${i}`}
+                  <span key={`${coKey(c)}:${i}`}
                     className="inline-flex items-center gap-1 border-2 border-ink bg-concrete px-2 py-0.5 font-mono text-sm font-bold">
                     {c.ticker}:{c.exchange}
                     <button onClick={() => P({ companies: proposal.companies.filter((_, j) => j !== i) })}>
@@ -214,17 +233,37 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
                     </button>
                   </span>
                 ))}
-                <input value={addCompany} onChange={(e) => setAddCompany(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') {
-                      e.preventDefault()
-                      const [t, ex] = addCompany.toUpperCase().split(':')
-                      if (t && ex) { P({ companies: [...proposal.companies, { ticker: t, exchange: ex }] }); setAddCompany('') }
-                    }
-                  }}
-                  placeholder="ADD TICKER:EXCHANGE"
-                  className="w-44 border-2 border-ink bg-surface px-2 py-0.5 font-mono text-sm outline-none focus:ring-2 focus:ring-acid" />
+                {proposal.companies.length < MAX_COMPANIES && (
+                  <input value={addCompany} onChange={(e) => setAddCompany(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const [t, ex] = addCompany.toUpperCase().split(':')
+                        if (t && ex) { addCompanyObj({ ticker: t, exchange: ex }); setAddCompany('') }
+                      }
+                    }}
+                    placeholder="ADD TICKER:EXCHANGE"
+                    className="w-44 border-2 border-ink bg-surface px-2 py-0.5 font-mono text-sm outline-none focus:ring-2 focus:ring-acid" />
+                )}
               </div>
+
+              {/* Agent-suggested proximate peers — tap to add (even if not central). */}
+              {proposal.suggested_companies.length > 0 && proposal.companies.length < MAX_COMPANIES && (
+                <div className="mt-2">
+                  <div className="text-[0.62rem] font-bold uppercase tracking-widest text-muted">
+                    Suggested — tap to add
+                  </div>
+                  <div className="mt-1 flex flex-wrap gap-1.5">
+                    {proposal.suggested_companies.map((c, i) => (
+                      <button key={`${coKey(c)}:${i}`} onClick={() => addCompanyObj(c)}
+                        title={c.reason ?? undefined}
+                        className="inline-flex items-center gap-1 border-2 border-dashed border-ink bg-surface px-2 py-0.5 font-mono text-xs font-bold text-muted hover:border-solid hover:bg-acid hover:text-ink">
+                        <Plus size={11} strokeWidth={3} /> {c.ticker}:{c.exchange}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {KINDS.map((kind) => (
@@ -254,7 +293,7 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
 
             {proposal.open_questions.length > 0 && (
               <div>
-                <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">Open questions → notes</div>
+                <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">Open questions</div>
                 <ul className="mt-1.5 space-y-1">
                   {proposal.open_questions.map((q, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm text-muted">

@@ -14,6 +14,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.models.companies import Company
+
 
 class NarrativeCreate(BaseModel):
     """What a client may send to create a narrative."""
@@ -35,6 +37,8 @@ class NarrativeUpdate(BaseModel):
 
     title: str | None = Field(default=None, min_length=1, max_length=200)
     thesis: str | None = None
+    # All narratives start active; the owner can flip this to retire one.
+    is_active: bool | None = None
 
 
 class Narrative(BaseModel):
@@ -49,5 +53,17 @@ class Narrative(BaseModel):
     id: UUID
     title: str
     thesis: str
+    is_active: bool
     created_at: datetime
     updated_at: datetime
+
+
+class NarrativeSummary(Narrative):
+    """A narrative plus its attached companies, hydrated server-side in ONE query.
+
+    List views (home, profile, a company's narratives) render a title and its
+    ticker chips. Embedding the companies here lets the API answer with a single
+    round-trip instead of the client firing an extra request per narrative.
+    """
+
+    companies: list[Company] = Field(default_factory=list)

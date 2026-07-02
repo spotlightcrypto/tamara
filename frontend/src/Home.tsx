@@ -5,7 +5,7 @@ import { api } from './lib/api'
 import { Header } from './Header'
 import { IntakeModal } from './IntakeModal'
 import { NarrativeCard } from './NarrativeCard'
-import type { Company, Narrative, NarrativeWithCompanies } from './lib/types'
+import type { NarrativeWithCompanies } from './lib/types'
 
 export function Home({ user }: { user: User }) {
   const [items, setItems] = useState<NarrativeWithCompanies[]>([])
@@ -16,14 +16,8 @@ export function Home({ user }: { user: User }) {
 
   async function load() {
     try {
-      const narratives = await api.get<Narrative[]>('/narratives')
-      const withCompanies = await Promise.all(
-        narratives.map(async (n) => ({
-          ...n,
-          companies: await api.get<Company[]>(`/narratives/${n.id}/companies`),
-        })),
-      )
-      setItems(withCompanies)
+      // One request — the backend embeds each narrative's companies.
+      setItems(await api.get<NarrativeWithCompanies[]>('/narratives'))
       setError(null)
     } catch (e) {
       setError((e as Error).message)

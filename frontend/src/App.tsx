@@ -6,6 +6,7 @@ import { Login } from './Login'
 import { Home } from './Home'
 import { Profile } from './Profile'
 import { NarrativeDetail } from './NarrativeDetail'
+import { CompanyPage } from './CompanyPage'
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -29,6 +30,7 @@ function App() {
         <Route path="/" element={<Home user={session.user} />} />
         <Route path="/profile" element={<Profile user={session.user} />} />
         <Route path="/narratives/:id" element={<NarrativeDetail />} />
+        <Route path="/companies/:id" element={<CompanyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>

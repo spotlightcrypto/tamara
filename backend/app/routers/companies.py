@@ -10,8 +10,9 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 
 from app.auth import CurrentUserDep, UserDbDep
-from app.models import Company, CompanyAttach
+from app.models import Company, CompanyAttach, NarrativeSummary
 from app.services import companies as service
+from app.services import narratives as narratives_service
 
 router = APIRouter(tags=["companies"])
 
@@ -58,3 +59,11 @@ async def get_company(
     if company is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "company not found")
     return company
+
+
+@router.get("/companies/{company_id}/narratives")
+async def list_company_narratives(
+    company_id: UUID, user: CurrentUserDep, db: UserDbDep
+) -> list[NarrativeSummary]:
+    """List the caller's narratives that involve this company (RLS-scoped)."""
+    return narratives_service.list_for_company(db, company_id)

@@ -124,14 +124,44 @@ def test_finalize_creates_narrative_and_children_idempotent(client, db, monkeypa
     assert narr["title"] == "Test Thesis"
     assert {i["kind"] for i in items} == {"bull", "bear"}
     assert [c["symbol"] for c in companies] == ["NVDA:NASDAQ"]
-    assert len(notes) == 1
+    # Notes are post-publication only — finalize must NOT seed them from
+    # the proposal's open_questions.
+    assert len(notes) == 0
     assert draft["status"] == "finalized" and draft["narrative_id"] == nid
+
+    # plain text kernel (no link) -> no sources recorded
+    assert client.get(f"/narratives/{nid}/sources").json() == []
 
     # idempotent — re-finalize returns the same narrative, no duplicate
     nid2 = client.post(f"/narratives/intake/{did}/finalize", json={"proposal": proposal}).json()["narrative_id"]
     assert nid2 == nid
 
     db.table("narratives").delete().eq("id", nid).execute()  # cascades items/notes/links
+    _delete_draft(db, did)
+
+
+def test_finalize_records_kernel_link_as_source(client, db, monkeypatch):
+    """A link in the kernel is captured as a source on the finished narrative,
+    idempotently (re-finalize doesn't duplicate it)."""
+    url = "https://example.com/nvda-thesis"
+    state = _start(client, monkeypatch, text=f"long NVDA, see {url}")
+    did = state["draft_id"]
+    proposal = client.post(
+        f"/narratives/intake/{did}/answer",
+        json={"answers": [{"question_id": "q_dir", "selected": ["Long"]}], "finish_now": True},
+    ).json()["proposal"]
+
+    nid = client.post(f"/narratives/intake/{did}/finalize", json={"proposal": proposal}).json()["narrative_id"]
+
+    sources = client.get(f"/narratives/{nid}/sources").json()
+    assert [s["url"] for s in sources] == [url]
+    assert sources[0]["title"] == "example.com"  # hostname fallback name
+
+    # re-finalize is idempotent — still exactly one source
+    client.post(f"/narratives/intake/{did}/finalize", json={"proposal": proposal})
+    assert len(client.get(f"/narratives/{nid}/sources").json()) == 1
+
+    db.table("narratives").delete().eq("id", nid).execute()
     _delete_draft(db, did)
 
 

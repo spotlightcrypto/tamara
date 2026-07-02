@@ -35,9 +35,11 @@ from app.models.items import (
 from app.models.narratives import (
     Narrative,
     NarrativeCreate,
+    NarrativeSummary,
     NarrativeUpdate,
 )
 from app.models.notes import Note, NoteCreate, NoteUpdate
+from app.models.sources import Source
 from app.models.users import CurrentUser
 
 __all__ = [
@@ -67,8 +69,10 @@ __all__ = [
     "QuestionOption",
     "Narrative",
     "NarrativeCreate",
+    "NarrativeSummary",
     "NarrativeUpdate",
     "Note",
     "NoteCreate",
     "NoteUpdate",
+    "Source",
 ]

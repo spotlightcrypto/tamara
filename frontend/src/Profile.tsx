@@ -3,7 +3,7 @@ import type { User } from '@supabase/supabase-js'
 import { api } from './lib/api'
 import { Header } from './Header'
 import { NarrativeCard } from './NarrativeCard'
-import type { Company, Narrative, NarrativeWithCompanies } from './lib/types'
+import type { NarrativeWithCompanies } from './lib/types'
 
 export function Profile({ user }: { user: User }) {
   const [items, setItems] = useState<NarrativeWithCompanies[]>([])
@@ -12,14 +12,7 @@ export function Profile({ user }: { user: User }) {
   useEffect(() => {
     ;(async () => {
       try {
-        const narratives = await api.get<Narrative[]>('/narratives')
-        const withCompanies = await Promise.all(
-          narratives.map(async (n) => ({
-            ...n,
-            companies: await api.get<Company[]>(`/narratives/${n.id}/companies`),
-          })),
-        )
-        setItems(withCompanies)
+        setItems(await api.get<NarrativeWithCompanies[]>('/narratives'))
       } finally {
         setLoading(false)
       }

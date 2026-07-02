@@ -14,7 +14,37 @@ from uuid import UUID
 
 from supabase import Client
 
-from app.models import Narrative, NarrativeCreate, NarrativeUpdate
+from app.models import (
+    Company,
+    Narrative,
+    NarrativeCreate,
+    NarrativeSummary,
+    NarrativeUpdate,
+)
+
+# PostgREST embedded-resource select: pull each narrative together with its
+# attached companies in ONE query. `narrative_companies(companies(*))` walks the
+# join table to the company rows; we flatten them in `_rows_to_summaries`.
+_WITH_COMPANIES = "*, narrative_companies(companies(*))"
+
+
+def _rows_to_summaries(rows: list[dict]) -> list[NarrativeSummary]:
+    """Turn embedded-select rows into NarrativeSummary objects.
+
+    Each row carries a `narrative_companies` list like
+    `[{"companies": {...}}, ...]`; we lift the nested company dicts out into a
+    flat `companies` list and drop the join scaffolding.
+    """
+    summaries = []
+    for row in rows:
+        links = row.pop("narrative_companies", None) or []
+        companies = [
+            Company.model_validate(link["companies"])
+            for link in links
+            if link.get("companies")
+        ]
+        summaries.append(NarrativeSummary.model_validate({**row, "companies": companies}))
+    return summaries
 
 
 def owns(db: Client, narrative_id: UUID) -> bool:
@@ -31,16 +61,44 @@ def owns(db: Client, narrative_id: UUID) -> bool:
     return bool(response.data)
 
 
-def list_for_user(db: Client, user_id: UUID) -> list[Narrative]:
-    """Return the user's narratives, most recently updated first."""
+def list_for_user(db: Client, user_id: UUID) -> list[NarrativeSummary]:
+    """Return the user's narratives (companies embedded), most recently updated
+    first. One query — the companies are joined server-side, so list views don't
+    have to fetch companies per narrative."""
     response = (
         db.table("narratives")
-        .select("*")
+        .select(_WITH_COMPANIES)
         .eq("user_id", str(user_id))  # RLS also enforces this; explicit = clear
         .order("updated_at", desc=True)
         .execute()
     )
-    return [Narrative.model_validate(row) for row in response.data]
+    return _rows_to_summaries(response.data)
+
+
+def list_for_company(db: Client, company_id: UUID) -> list[NarrativeSummary]:
+    """Return the caller's narratives that involve a given company, newest first.
+
+    RLS scopes this to the caller's own narratives automatically. Uses the
+    `narrative_companies(company_id)` index to find the narrative ids, then one
+    embedded select to hydrate them (with all their companies) in a single query.
+    """
+    links = (
+        db.table("narrative_companies")
+        .select("narrative_id")
+        .eq("company_id", str(company_id))
+        .execute()
+    )
+    narrative_ids = [link["narrative_id"] for link in links.data]
+    if not narrative_ids:
+        return []
+    response = (
+        db.table("narratives")
+        .select(_WITH_COMPANIES)
+        .in_("id", narrative_ids)  # RLS still filters to the caller's own rows
+        .order("updated_at", desc=True)
+        .execute()
+    )
+    return _rows_to_summaries(response.data)
 
 
 def create_for_user(db: Client, user_id: UUID, data: NarrativeCreate) -> Narrative:

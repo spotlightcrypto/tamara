@@ -100,13 +100,20 @@ class ProposalItem(BaseModel):
     cite: str | None = None  # "kernel" if supported by the kernel text, else null
 
 
+MAX_COMPANIES = 8  # a narrative is about at most this many companies
+
+
 class Proposal(BaseModel):
     """The committed, directional draft narrative. The thesis takes a position;
     the bull case is THE case; bear/risk are the counter (what breaks it)."""
 
     title: str
     thesis: str
+    # The companies the thesis is directly about (1..MAX_COMPANIES).
     companies: list[ProposalCompany] = []
+    # Proximate / possibly-relevant peers the agent offers for the user to ADD —
+    # not committed to the thesis, just candidates surfaced in the review step.
+    suggested_companies: list[ProposalCompany] = []
     items: list[ProposalItem] = []
     confidence: Confidence = Confidence.medium
     open_questions: list[str] = []

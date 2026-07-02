@@ -10,15 +10,15 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 
 from app.auth import CurrentUserDep, UserDbDep
-from app.models import Narrative, NarrativeCreate, NarrativeUpdate
+from app.models import Narrative, NarrativeCreate, NarrativeSummary, NarrativeUpdate
 from app.services import narratives as service
 
 router = APIRouter(prefix="/narratives", tags=["narratives"])
 
 
 @router.get("")
-async def list_narratives(user: CurrentUserDep, db: UserDbDep) -> list[Narrative]:
-    """List the calling user's narratives."""
+async def list_narratives(user: CurrentUserDep, db: UserDbDep) -> list[NarrativeSummary]:
+    """List the calling user's narratives, each with its companies embedded."""
     return service.list_for_user(db, user.id)
 
 

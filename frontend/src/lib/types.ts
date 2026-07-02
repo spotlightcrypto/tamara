@@ -4,6 +4,7 @@ export interface Narrative {
   id: string
   title: string
   thesis: string
+  is_active: boolean
   created_at: string
   updated_at: string
 }
@@ -32,6 +33,14 @@ export interface Note {
   updated_at: string
 }
 
+export interface Source {
+  id: string
+  narrative_id: string
+  url: string
+  title: string // short "few words" display name
+  created_at: string
+}
+
 export interface Company {
   id: string
   ticker: string
@@ -46,7 +55,8 @@ export interface Company {
   updated_at: string
 }
 
-// A narrative plus the companies attached to it (composed client-side for now).
+// A narrative plus the companies attached to it. The backend embeds these in
+// list responses (GET /narratives, GET /companies/:id/narratives) in one query.
 export interface NarrativeWithCompanies extends Narrative {
   companies: Company[]
 }
@@ -95,10 +105,13 @@ export interface Proposal {
   title: string
   thesis: string
   companies: ProposalCompany[]
+  suggested_companies: ProposalCompany[]
   items: ProposalItem[]
   confidence: Confidence
   open_questions: string[]
 }
+
+export const MAX_COMPANIES = 8
 
 export interface KernelSummary {
   kind: string

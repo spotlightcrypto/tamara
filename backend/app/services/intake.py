@@ -10,6 +10,7 @@ Step 2 builds the front of the pipeline:
 Synthesis and the answer loop come in later steps.
 """
 
+import re
 from collections import defaultdict
 from uuid import UUID
 
@@ -28,10 +29,16 @@ from app.models import (
     Proposal,
     Question,
 )
+from app.models.intake import MAX_COMPANIES
 from app.providers import llm
 from app.providers.ingest import ingest_url
 from app.services import companies as companies_service
 from app.services import narratives as narratives_service
+from app.services import sources as sources_service
+
+# Pull http(s) links out of free text so a text kernel that mentions a URL still
+# records it as a source.
+_URL_RE = re.compile(r"https?://[^\s<>\"')]+")
 
 MAX_ROUNDS = 3  # question rounds before we synthesize regardless
 
@@ -149,10 +156,16 @@ Produce, matching the schema:
 - thesis: 2-4 sentences stating the POSITION as a committed directional claim
   (the bet and why it works), in the user's framing. Take a side; do NOT hedge
   into a neutral both-sides summary.
-- companies: the names the thesis is about — ticker + exchange (e.g. CEG /
-  NASDAQ), using the user's choices and the kernel. NEVER invent a ticker; if
-  unsure of the exact symbol or exchange, use the most likely and note the
-  uncertainty in open_questions.
+- companies: the names the thesis is DIRECTLY about — ticker + exchange (e.g.
+  CEG / NASDAQ), using the user's choices and the kernel. Include every company
+  the thesis genuinely turns on (up to 8), not just one, but do not pad with
+  loosely-related names. NEVER invent a ticker; if unsure of the exact symbol or
+  exchange, use the most likely and note the uncertainty in open_questions.
+- suggested_companies: up to 6 PROXIMATE peers the user might also want to add —
+  competitors, suppliers, customers, or pure-play beneficiaries adjacent to the
+  thesis — that are NOT central enough to commit to `companies`. Each with a
+  one-line `reason`. Never duplicate anything already in `companies`. Same
+  ticker rules (never invent).
 - items: the argument as bull/bear/catalyst/risk points. The BULL case is THE
   case (the position, foregrounded). bear and risk are the COUNTER — what would
   break the thesis — not equal-weight hedging. catalysts may carry event_date
@@ -230,8 +243,8 @@ def get_draft(db: Client, draft_id: UUID) -> IntakeState:
 
 
 def finalize(db: Client, user_id: UUID, draft_id: UUID, proposal: Proposal) -> UUID:
-    """Promote the (user-edited) proposal into a real narrative + items + companies
-    + notes, and mark the draft finalized. Idempotent on an already-finalized draft.
+    """Promote the (user-edited) proposal into a real narrative + items + companies,
+    and mark the draft finalized. Idempotent on an already-finalized draft.
 
     Note: not atomic across statements (PostgREST has no multi-statement txn); a DB
     function would make it transactional later. Source rows / item citations land
@@ -263,8 +276,9 @@ def finalize(db: Client, user_id: UUID, draft_id: UUID, proposal: Proposal) -> U
     if item_rows:
         db.table("narrative_items").insert(item_rows).execute()
 
-    # 3. companies (get-or-create + attach by exchange-qualified ticker)
-    for company in proposal.companies:
+    # 3. companies (get-or-create + attach by exchange-qualified ticker), capped
+    #    at MAX_COMPANIES — a narrative is about at most 8 companies.
+    for company in proposal.companies[:MAX_COMPANIES]:
         try:
             companies_service.attach(
                 db, nid, CompanyAttach(ticker=company.ticker, exchange=company.exchange, name=company.name)
@@ -272,14 +286,17 @@ def finalize(db: Client, user_id: UUID, draft_id: UUID, proposal: Proposal) -> U
         except Exception:
             continue  # skip a malformed company rather than fail the whole finalize
 
-    # 4. open questions -> notes
-    note_rows = [
-        {"user_id": str(user_id), "narrative_id": str(nid), "body": q.strip()}
-        for q in proposal.open_questions
-        if q.strip()
-    ]
-    if note_rows:
-        db.table("notes").insert(note_rows).execute()
+    # 4. sources — record the kernel's link(s) so the narrative shows its origin.
+    for url, title in _kernel_sources(draft):
+        try:
+            sources_service.add(db, nid, url, title)
+        except Exception:
+            continue
+
+    # NOTE: we deliberately do NOT create notes here. Notes are post-publication
+    # commentary the user adds *after* a narrative exists — not intake output. The
+    # proposal's open_questions stay on the draft row (proposal jsonb) for later
+    # surfacing; they aren't lost.
 
     # 5. mark the draft finalized
     _update_draft(db, draft_id, {"status": "finalized", "narrative_id": str(nid)})
@@ -287,6 +304,25 @@ def finalize(db: Client, user_id: UUID, draft_id: UUID, proposal: Proposal) -> U
 
 
 # --- helpers ---------------------------------------------------------------
+
+def _kernel_sources(draft: dict) -> list[tuple[str, str | None]]:
+    """The link(s) to record as sources for this draft's kernel.
+
+    A URL kernel yields one source with the title we ingested (a "few words"
+    name). A text kernel yields any http(s) links found in the pasted text
+    (titled by hostname downstream). Returns (url, title) pairs, de-duplicated.
+    """
+    out: list[tuple[str, str | None]] = []
+    seen: set[str] = set()
+    if draft.get("kernel_url"):
+        out.append((draft["kernel_url"], draft.get("kernel_title")))
+        seen.add(draft["kernel_url"])
+    for match in _URL_RE.findall(draft.get("kernel_raw") or ""):
+        if match not in seen:
+            out.append((match, None))
+            seen.add(match)
+    return out
+
 
 def _load_draft(db: Client, draft_id: UUID) -> dict:
     response = (
