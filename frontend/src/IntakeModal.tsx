@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Plus, RefreshCw, X } from 'lucide-react'
 import { api, ApiError } from './lib/api'
@@ -56,8 +56,12 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
     return () => clearInterval(t)
   }, [stage, phase])
 
-  // kick off intake on mount
+  // Kick off intake on mount — guarded so React StrictMode's double-invoke in
+  // dev doesn't start (and create a draft) twice.
+  const startedRef = useRef(false)
   useEffect(() => {
+    if (startedRef.current) return
+    startedRef.current = true
     void start()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
