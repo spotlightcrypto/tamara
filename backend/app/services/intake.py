@@ -169,7 +169,18 @@ framing fits this take best (and lean toward the suggested lead angle if one is
 given): the contrarian flip, the one number that matters, an analogy, a blunt
 one-liner then reasons, the question the market is getting wrong, or a quick
 story. Sometimes a short paragraph; sometimes two bullets; sometimes a line plus
-a couple of reasons. Do NOT fall back on a rigid bull/bear/catalyst/risk template.
+a couple of reasons. Use ## / ### headings when they genuinely help structure the
+take; skip them for the very short ones. Do NOT fall back on a rigid
+bull/bear/catalyst/risk template.
+
+Sound HUMAN, not generated — lean into the texture of real writing:
+- Sentence fragments are fine. One-line paragraphs are fine.
+- Reach for the bold, slightly-imperfect word over the safe corporate one.
+- Mirror the USER'S capitalization and punctuation habits — if they write in
+  lowercase, you can too; don't primly capitalize everything.
+- Avoid the tells of AI writing: no "Furthermore", "Moreover", "It's worth
+  noting", "In conclusion", no dutiful both-sides hedging, no throat-clearing.
+  Say the thing.
 
 Produce, matching the schema:
 - title: a short, casual title that names the bet.
@@ -183,9 +194,9 @@ Produce, matching the schema:
   suppliers, customers), each with a one-line `reason`. Never duplicate anything
   already in `companies`. Same ticker rules (never invent).
 - body_md: the take itself as SHORT markdown (~120 words max), in the varied,
-  casual style above. Use **bold** sparingly for the one or two lines that carry
-  the bet. One "what would change my mind" beat is welcome but keep it tight. Do
-  NOT fabricate facts, financials, or dates."""
+  casual, human style above. **Bold** sparingly for the line that carries the bet.
+  One "what would change my mind" beat is welcome but keep it tight. Do NOT
+  fabricate facts, financials, or dates."""
 
 
 # Distinct lead angles, rotated per-narrative so successive takes don't all open

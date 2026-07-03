@@ -12,7 +12,7 @@ type Phase = 'reading' | 'thinking' | 'synthesizing'
 const PROC_MESSAGES: Record<Phase, string[]> = {
   reading: ['Reading the kernel', 'Pulling signal from noise', 'Framing the position', 'Drafting sharp questions'],
   thinking: ['Taking your answers', 'Sharpening the position', 'Deciding what else to ask'],
-  synthesizing: ['Weighing the bull case', 'Stress-testing the bear', 'Resolving tickers', 'Committing to a position'],
+  synthesizing: ['Processing', 'Finding the words', 'Writing it up', 'Finalizing'],
 }
 
 // Roughly how long we expect each phase to take. Each step gets an equal slice
@@ -251,7 +251,7 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
             {/* Positioning — auto-generated stance label, editable to anything */}
             <div className="flex items-center gap-2">
               <span className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">Positioning</span>
-              <input list="positioning-labels" value={proposal.positioning}
+              <input list="positioning-labels" value={proposal.positioning} maxLength={15}
                 onChange={(e) => P({ positioning: e.target.value })}
                 className="w-40 border-2 border-ink bg-acid px-2 py-0.5 font-mono text-sm font-bold uppercase outline-none focus:ring-2 focus:ring-ink" />
               <datalist id="positioning-labels">

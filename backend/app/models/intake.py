@@ -112,8 +112,9 @@ class Proposal(BaseModel):
 
     title: str
     thesis: str
-    # An auto-generated stance label from POSITIONING_LABELS, editable to anything.
-    positioning: str = "normiebull"
+    # An auto-generated stance label from POSITIONING_LABELS, editable to anything
+    # (capped short — it's a label, not a sentence).
+    positioning: str = Field(default="normiebull", max_length=15)
     # The companies the thesis is directly about (1..MAX_COMPANIES).
     companies: list[ProposalCompany] = []
     # Proximate / possibly-relevant peers the agent offers for the user to ADD —
