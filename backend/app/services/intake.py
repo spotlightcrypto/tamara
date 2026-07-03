@@ -10,6 +10,7 @@ Step 2 builds the front of the pipeline:
 Synthesis and the answer loop come in later steps.
 """
 
+import hashlib
 import re
 from uuid import UUID
 
@@ -59,30 +60,32 @@ class QuestionSet(BaseModel):
 
 
 _QUESTIONS_SYSTEM = """\
-You are Tamara, an investment-research assistant. You turn a rough KERNEL (the
-content of a link, a tweet, or a note) into a SHARP, COMMITTED investment thesis
-that takes a position.
+You are Tamara, an investment-research assistant. You turn a rough KERNEL (a link,
+a tweet, or a note) into a SHORT, COMMITTED, PERSONAL investment take.
 
-Right now, decide whether you have enough to draft a useful, *positioned*
-narrative. If yes, set ready=true and return no questions. If not, ask up to 4
-sharp, NON-REDUNDANT questions that pin down or establish the POSITION — only
-what is missing.
+Decide whether you have enough to draft a useful, *positioned* take. If yes, set
+ready=true and return no questions. Otherwise ask 4-6 sharp, NON-REDUNDANT
+questions that pull out the user's OWN thinking and voice — not just facts.
 
 Principles:
 - Push toward a position. Infer the implied directional stance (long/short, the
   bet) from the kernel and aim questions at sharpening that bet — never produce a
   neutral, both-sides survey. If the kernel is directionless, ask what side the
   user wants to take.
-- Target only the gaps among: the specific claim/direction, which companies or
-  tickers, time horizon, the strongest bull point, what would break it
-  (bear/risk), dated catalysts, the user's edge / why now. Never ask what the
-  kernel already answers.
-- Each question: offer 2-4 concrete options (label + short description) and allow
-  a free-text answer. Keep them tight and concrete.
+- Cover the gaps among: the specific claim/direction, which companies or tickers,
+  time horizon, the strongest point FOR it, what would break it, dated catalysts,
+  and — importantly — the user's own edge/angle and why they care. Never ask what
+  the kernel already answers.
+- MIX the formats. Most questions offer 2-4 concrete options (label + short
+  description) as quick taps. But ALWAYS include at least one OPEN question
+  (open_ended=true, no options) that asks the user to answer in their OWN WORDS,
+  e.g. "In a sentence or two, what's the real bet here?" or "What does the market
+  get wrong?" These open answers capture their voice — favor them.
 
 Output JSON matching the schema. Each question needs: id (stable lowercase slug),
-header (<= 16 chars), question, options (label + optional description),
-multi_select, allow_free_text."""
+header (<= 16 chars), question, options (label + optional description — EMPTY for
+open questions), multi_select, allow_free_text, open_ended (true for the open,
+answer-in-your-own-words questions)."""
 
 
 def propose_questions(kind: KernelKind, content: str, transcript: list[dict]) -> QuestionSet:
@@ -147,52 +150,94 @@ class DraftNotFound(Exception):
 
 
 _SYNTH_SYSTEM = """\
-You are Tamara. Synthesize the KERNEL and the user's answers into a SHARP,
-COMMITTED investment narrative that takes a position.
+You are Tamara. Turn the KERNEL and the user's answers into a SHORT, punchy,
+PERSONAL investment take that commits to a position — the kind of thing someone
+texts a smart friend, not a research report.
+
+Voice & length:
+- Write CASUALLY and plainly. Short sentences, contractions, everyday words. Skip
+  finance jargon (no "re-rating", "multiple compression", "secular tailwind")
+  UNLESS the user used it first. If a smart 12-year-old couldn't follow it, simplify.
+- Keep it SHORT. The whole body is at most ~120 words. A few sharp points beat a
+  complete survey — leave things out on purpose.
+- Build it from the USER'S OWN WORDS. Echo their phrasing, their metaphors, their
+  angle; lightly edit their strongest lines rather than paraphrasing them into
+  generic prose. It should sound like THEM, not like a bank.
+
+VARY your approach — do NOT use the same structure every time. Pick whatever
+framing fits this take best (and lean toward the suggested lead angle if one is
+given): the contrarian flip, the one number that matters, an analogy, a blunt
+one-liner then reasons, the question the market is getting wrong, or a quick
+story. Sometimes a short paragraph; sometimes two bullets; sometimes a line plus
+a couple of reasons. Do NOT fall back on a rigid bull/bear/catalyst/risk template.
 
 Produce, matching the schema:
-- title: a concise, assertive title that names the bet.
-- thesis: 2-4 sentences stating the POSITION as a committed directional claim
-  (the bet and why it works), in the user's framing. Take a side; do NOT hedge
-  into a neutral both-sides summary.
+- title: a short, casual title that names the bet.
+- thesis: 1-2 casual sentences — the hook, the bet in plain words.
 - positioning: ONE stance label capturing direction AND intensity, chosen from:
-  megabull, permabull, normiebull, megabear, ultrabear. Pick the one that best
-  fits the thesis's conviction.
-- companies: the names the thesis is DIRECTLY about — ticker + exchange (e.g.
-  CEG / NASDAQ), using the user's choices and the kernel. Include every company
-  the thesis genuinely turns on (up to 8), not just one, but do not pad with
-  loosely-related names. NEVER invent a ticker; if unsure of the exact symbol or
-  exchange, use the most likely and flag the uncertainty in the Open questions.
-- suggested_companies: up to 6 PROXIMATE peers the user might also want to add —
-  competitors, suppliers, customers, or pure-play beneficiaries adjacent to the
-  thesis — that are NOT central enough to commit to `companies`. Each with a
-  one-line `reason`. Never duplicate anything already in `companies`. Same
-  ticker rules (never invent).
-- body_md: the full argument as ONE markdown document, formatted with these
-  section headings in this order:
-    ## Bull
-    ## Bear
-    ## Catalysts
-    ## Risks
-    ## Open questions
-  Under each heading use `- ` bullet points. The BULL case is THE case (the
-  position, foregrounded, the most developed section). Bear and Risks are the
-  COUNTER — what would break the thesis — not equal-weight hedging. Catalysts may
-  note dates inline. Open questions are genuinely open threads. Use **bold** for
-  the few load-bearing phrases. Do NOT fabricate facts, financials, or dates;
-  omit a section only if there is genuinely nothing honest to put in it."""
+  megabull, permabull, normiebull, megabear, ultrabear.
+- companies: the tickers the take is DIRECTLY about — ticker + exchange (e.g.
+  CEG / NASDAQ), from the user's choices and the kernel (up to 8; don't pad).
+  NEVER invent a ticker; if unsure, use the most likely.
+- suggested_companies: up to 6 PROXIMATE peers to maybe add (competitors,
+  suppliers, customers), each with a one-line `reason`. Never duplicate anything
+  already in `companies`. Same ticker rules (never invent).
+- body_md: the take itself as SHORT markdown (~120 words max), in the varied,
+  casual style above. Use **bold** sparingly for the one or two lines that carry
+  the bet. One "what would change my mind" beat is welcome but keep it tight. Do
+  NOT fabricate facts, financials, or dates."""
+
+
+# Distinct lead angles, rotated per-narrative so successive takes don't all open
+# the same way. The model may override if another framing fits better.
+_LEAD_ANGLES = [
+    "the contrarian flip — name what the crowd believes, then why it's wrong",
+    "the one number or fact that matters most",
+    "an analogy that reframes the bet",
+    "a blunt one-line call, then the reasons",
+    "the question the market is getting wrong",
+    "a quick concrete story or scenario",
+]
+
+
+def _pick_lead(seed: str) -> str:
+    """Deterministically pick a lead angle from a seed, so different kernels lean
+    different ways (variety) while a given kernel stays stable across retries."""
+    digest = int(hashlib.md5(seed.encode("utf-8")).hexdigest(), 16)
+    return _LEAD_ANGLES[digest % len(_LEAD_ANGLES)]
+
+
+def _user_writing(kind: KernelKind, content: str, transcript: list[dict]) -> str:
+    """Gather the user's OWN words to voice the take: their authored kernel (only
+    if they wrote it — not a link/tweet we ingested) plus every free-text answer."""
+    parts: list[str] = []
+    if kind == KernelKind.text and content.strip():
+        parts.append(content.strip())
+    for turn in transcript:
+        for a in turn.get("answers", []):
+            free = (a.get("free_text") or "").strip()
+            if free:
+                parts.append(free)
+    return "\n".join(f"- {p}" for p in parts) if parts else "(none provided)"
 
 
 def synthesize_narrative(kind: KernelKind, content: str, transcript: list[dict]) -> Proposal:
-    """Turn the kernel + answers into a committed, positioned draft narrative."""
+    """Turn the kernel + answers into a short, casual, positioned take — voiced
+    from the user's own words, with a rotated lead angle for variety."""
+    writing = _user_writing(kind, content, transcript)
+    lead = _pick_lead(content + writing)
+    user_msg = (
+        f'KERNEL (kind={kind.value}):\n"""\n{content[:6000]}\n"""\n\n'
+        f"Q&A:\n{_format_qa(transcript)}\n\n"
+        f"USER'S OWN WORDS (echo this voice; build the take from it):\n{writing}\n\n"
+        f"Suggested lead angle (use if it fits, else pick a better one): {lead}"
+    )
     messages = [
         {"role": "system", "content": _SYNTH_SYSTEM},
-        {
-            "role": "user",
-            "content": f'KERNEL (kind={kind.value}):\n"""\n{content[:6000]}\n"""\n\nQ&A:\n{_format_qa(transcript)}',
-        },
+        {"role": "user", "content": user_msg},
     ]
-    return llm.structured(messages, Proposal, role="synthesis")
+    # Higher temperature for rhetorical variety across takes.
+    return llm.structured(messages, Proposal, role="synthesis", temperature=0.9)
 
 
 def regenerate(db: Client, draft_id: UUID, current: Proposal, instructions: str) -> IntakeState:
@@ -202,6 +247,7 @@ def regenerate(db: Client, draft_id: UUID, current: Proposal, instructions: str)
     draft = _load_draft(db, draft_id)
     kind, content = _kernel_content(draft)
     transcript = list(draft["transcript"])
+    writing = _user_writing(kind, content, transcript)
     messages = [
         {"role": "system", "content": _SYNTH_SYSTEM},
         {
@@ -209,13 +255,14 @@ def regenerate(db: Client, draft_id: UUID, current: Proposal, instructions: str)
             "content": (
                 f'KERNEL (kind={kind.value}):\n"""\n{content[:6000]}\n"""\n\n'
                 f"Q&A:\n{_format_qa(transcript)}\n\n"
-                f"CURRENT DRAFT (revise this, keep what still holds):\n"
+                f"USER'S OWN WORDS (echo this voice):\n{writing}\n\n"
+                f"CURRENT DRAFT (revise this, keep what still holds; stay short and casual):\n"
                 f"{current.model_dump_json(indent=2)}\n\n"
                 f"REVISION INSTRUCTIONS:\n{instructions.strip()}"
             ),
         },
     ]
-    proposal = llm.structured(messages, Proposal, role="synthesis")
+    proposal = llm.structured(messages, Proposal, role="synthesis", temperature=0.9)
     _update_draft(db, draft_id, {"proposal": proposal.model_dump(mode="json"), "status": "proposed"})
     summary = _kernel_summary(draft, kind)
     return IntakeState(

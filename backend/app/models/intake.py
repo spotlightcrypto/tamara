@@ -69,6 +69,9 @@ class Question(BaseModel):
     options: list[QuestionOption] = []
     multi_select: bool = False
     allow_free_text: bool = True
+    # An open, answer-in-your-own-words prompt (no options) — the UI renders a
+    # textarea. These capture the user's voice and feed the synthesis style.
+    open_ended: bool = False
 
 
 class Answer(BaseModel):

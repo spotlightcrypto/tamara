@@ -77,6 +77,7 @@ export interface Question {
   options: QuestionOption[]
   multi_select: boolean
   allow_free_text: boolean
+  open_ended: boolean // render as a free-response textarea, no options
 }
 
 export interface Answer {

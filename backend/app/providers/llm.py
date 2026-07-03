@@ -47,9 +47,19 @@ def complete(messages: list[dict[str, Any]], *, role: str = "fast", temperature:
     return response.choices[0].message.content or ""
 
 
-def structured(messages: list[dict[str, Any]], schema: type[T], *, role: str = "fast", retries: int = 2) -> T:
+def structured(
+    messages: list[dict[str, Any]],
+    schema: type[T],
+    *,
+    role: str = "fast",
+    retries: int = 2,
+    temperature: float = 0.2,
+) -> T:
     """Return a validated instance of `schema`, re-prompting until the model
-    returns JSON that conforms (or raising after `retries`)."""
+    returns JSON that conforms (or raising after `retries`).
+
+    `temperature` defaults low for stable, schema-faithful output; callers that
+    want variety (e.g. synthesis) can raise it."""
     instruction = {
         "role": "system",
         "content": (
@@ -62,7 +72,7 @@ def structured(messages: list[dict[str, Any]], schema: type[T], *, role: str = "
 
     last_error = ""
     for _ in range(retries + 1):
-        raw = complete(convo, role=role, temperature=0.2)
+        raw = complete(convo, role=role, temperature=temperature)
         candidate = _extract_json(raw)
         try:
             return schema.model_validate_json(candidate)

@@ -371,17 +371,31 @@ function QuestionStep({
         {q.header} · {index + 1} / {total}
       </div>
       <div className="mt-1 font-display text-2xl font-bold">{q.question}</div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {q.options.map((o) => (
-          <button key={o.label} onClick={() => onToggle(q, o.label)} title={o.description ?? undefined}
-            className={`border-2 border-ink px-3 py-1.5 text-sm font-medium ${sel.includes(o.label) ? 'bg-acid' : 'bg-surface hover:bg-concrete'}`}>
-            {o.label}
-          </button>
-        ))}
-      </div>
-      {q.allow_free_text && (
-        <input value={answer?.free_text ?? ''} onChange={(e) => onFreeText(q, e.target.value)} placeholder="Or in your own words…"
-          className="mt-3 w-full border-2 border-ink bg-concrete px-3 py-2 font-mono text-sm outline-none focus:bg-surface focus:ring-2 focus:ring-acid" />
+      {q.open_ended ? (
+        // Open, answer-in-your-own-words prompt — a roomy textarea, no options.
+        <textarea
+          value={answer?.free_text ?? ''}
+          onChange={(e) => onFreeText(q, e.target.value)}
+          rows={4}
+          autoFocus
+          placeholder="In your own words…"
+          className="mt-3 w-full resize-y border-2 border-ink bg-concrete px-3 py-2.5 font-mono text-sm leading-relaxed outline-none focus:bg-surface focus:ring-2 focus:ring-acid"
+        />
+      ) : (
+        <>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {q.options.map((o) => (
+              <button key={o.label} onClick={() => onToggle(q, o.label)} title={o.description ?? undefined}
+                className={`border-2 border-ink px-3 py-1.5 text-sm font-medium ${sel.includes(o.label) ? 'bg-acid' : 'bg-surface hover:bg-concrete'}`}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+          {q.allow_free_text && (
+            <input value={answer?.free_text ?? ''} onChange={(e) => onFreeText(q, e.target.value)} placeholder="Or in your own words…"
+              className="mt-3 w-full border-2 border-ink bg-concrete px-3 py-2 font-mono text-sm outline-none focus:bg-surface focus:ring-2 focus:ring-acid" />
+          )}
+        </>
       )}
       <div className="mt-6 flex items-center justify-between">
         <button onClick={onBack} disabled={index === 0} className={plainBtn}>
