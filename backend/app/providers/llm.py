@@ -27,11 +27,11 @@ _client = OpenAI(
     default_headers={"X-Title": "Tamara"},
 )
 
-# Logical role -> model. For now every role uses the one configured model;
-# later we can tier (e.g. synthesis -> a stronger model, fast -> a cheaper one).
+# Logical role -> model. `synthesis` uses the heavyweight model for writing
+# quality; `fast` uses a snappy model for latency-sensitive question generation.
 _MODELS: dict[str, str] = {
     "synthesis": settings.llm_model,
-    "fast": settings.llm_model,
+    "fast": settings.llm_model_fast,
 }
 
 T = TypeVar("T", bound=BaseModel)

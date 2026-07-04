@@ -29,10 +29,14 @@ class Settings(BaseSettings):
     supabase_anon_key: str = ""
 
     # LLM via OpenRouter (OpenAI-compatible gateway to many models). One key;
-    # the model is config-driven so we can swap it without touching code.
+    # models are config-driven so we can swap them without touching code.
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
+    # The heavyweight model for synthesis (writing the narrative).
     llm_model: str = "z-ai/glm-5.2"
+    # A fast model for the latency-sensitive `fast` role (question generation).
+    # glm-5.2 took 20-50s here; Haiku 4.5 is ~8s and asks sharper questions.
+    llm_model_fast: str = "anthropic/claude-haiku-4.5"
 
 
 # A single shared instance, imported wherever config is needed:
