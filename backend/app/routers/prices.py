@@ -31,10 +31,18 @@ async def ingest(
     db: UserDbDep,
     day: date | None = Query(default=None, description="Trading day (YYYY-MM-DD); defaults to today"),
 ) -> dict[str, int | str]:
-    """Bulk-ingest one trading day (all US tickers in a single upstream call)."""
+    """Bulk-ingest one trading day (all US tickers in a single upstream call).
+    Production path — needs a Polygon key."""
     target = day or date.today()
     try:
         written = service.ingest_day(db, target)
     except PricesError as exc:
         raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc))
     return {"date": target.isoformat(), "bars": written}
+
+
+@router.post("/prices/ingest/watchlist")
+async def ingest_watchlist(user: CurrentUserDep, db: UserDbDep) -> dict:
+    """PROTOTYPE (keyless): cache ~1y of history for every ticker in a narrative,
+    via Yahoo. Lets us prove the pipeline before the Polygon key lands."""
+    return service.ingest_watchlist(db)

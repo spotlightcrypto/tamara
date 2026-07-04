@@ -35,6 +35,12 @@ export interface Note {
   updated_at: string
 }
 
+export interface PricePerformance {
+  ticker: string
+  as_of: string | null
+  performance: Record<string, number> // e.g. { "1D": -2.05, "1W": 12.5, ... }
+}
+
 export interface Source {
   id: string
   narrative_id: string

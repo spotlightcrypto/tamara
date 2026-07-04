@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink } from 'lucide-react'
 import { api } from './lib/api'
 import { Header } from './Header'
 import { Markdown } from './Markdown'
+import { PriceSidebar } from './PriceSidebar'
 import { formatDate, timeAgo } from './lib/time'
 import type { Company, Narrative, Note, Source } from './lib/types'
 
@@ -71,7 +72,7 @@ export function NarrativeDetail() {
   return (
     <div className="min-h-screen bg-concrete text-ink">
       <Header />
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-8">
         <Link
           to="/"
           className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted hover:text-ink"
@@ -87,8 +88,9 @@ export function NarrativeDetail() {
         )}
 
         {narrative && (
-          <>
-            <div className="mt-4 flex items-start justify-between gap-3">
+          <div className="mt-4 lg:flex lg:items-start lg:gap-6">
+           <div className="min-w-0 lg:max-w-3xl lg:flex-1">
+            <div className="flex items-start justify-between gap-3">
               <h1 className="font-display text-3xl font-bold tracking-tight">{narrative.title}</h1>
               {/* Owner-only status: only the owner can load this narrative (RLS),
                   so reaching this page means you own it. */}
@@ -197,7 +199,10 @@ export function NarrativeDetail() {
                 </ul>
               </div>
             </section>
-          </>
+           </div>
+
+            <PriceSidebar companies={companies} />
+          </div>
         )}
       </main>
     </div>
