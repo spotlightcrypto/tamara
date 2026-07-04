@@ -17,6 +17,7 @@ from app.routers.intake import router as intake_router
 from app.routers.items import router as items_router
 from app.routers.narratives import router as narratives_router
 from app.routers.notes import router as notes_router
+from app.routers.prices import router as prices_router
 from app.routers.sources import router as sources_router
 
 # `app` is the FastAPI application object. uvicorn looks for this object (by the
@@ -42,6 +43,7 @@ app.include_router(items_router)
 app.include_router(notes_router)
 app.include_router(companies_router)
 app.include_router(sources_router)
+app.include_router(prices_router)
 app.include_router(intake_router)
 
 

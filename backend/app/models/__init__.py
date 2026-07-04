@@ -39,6 +39,7 @@ from app.models.narratives import (
     NarrativeUpdate,
 )
 from app.models.notes import Note, NoteCreate, NoteUpdate
+from app.models.prices import PricePerformance
 from app.models.sources import Source
 from app.models.users import CurrentUser
 
@@ -74,5 +75,6 @@ __all__ = [
     "Note",
     "NoteCreate",
     "NoteUpdate",
+    "PricePerformance",
     "Source",
 ]

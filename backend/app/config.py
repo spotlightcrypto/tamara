@@ -38,6 +38,11 @@ class Settings(BaseSettings):
     # glm-5.2 took 20-50s here; Haiku 4.5 is ~8s and asks sharper questions.
     llm_model_fast: str = "anthropic/claude-haiku-4.5"
 
+    # Market-data (prices). Polygon.io free "Basic" tier: the Grouped Daily Bars
+    # endpoint returns ALL US tickers' EOD bar in one call, which is what lets
+    # this scale to thousands of tickers cheaply. Empty until a key is provided.
+    polygon_api_key: str = ""
+
 
 # A single shared instance, imported wherever config is needed:
 #   from app.config import settings
