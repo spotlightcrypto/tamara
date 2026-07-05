@@ -17,3 +17,9 @@ class PricePerformance(BaseModel):
     ticker: str
     as_of: date | None  # date of the latest bar the numbers are computed from
     performance: dict[str, float]
+
+    # Optional "since a reference date" (e.g. when a narrative was created): the
+    # close on/before that date, and the % change from then to `as_of`.
+    since_date: date | None = None
+    since_close: float | None = None
+    since_change: float | None = None

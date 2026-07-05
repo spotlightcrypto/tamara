@@ -39,6 +39,17 @@ def test_performance_computes_windows(client, db):
     db.table("daily_bars").delete().eq("ticker", ticker).execute()
 
 
+def test_performance_since_reference_date(client, db):
+    ticker = "ZZSINCE"
+    today = _seed(db, ticker, {0: 120.0, 10: 100.0, 30: 80.0})
+    since = today - timedelta(days=10)  # narrative "created" 10 days ago
+    perf = svc.performance(db, ticker, since=since)
+    assert perf.since_date == since
+    assert perf.since_close == 100.0
+    assert perf.since_change == 20.0  # 120 vs 100
+    db.table("daily_bars").delete().eq("ticker", ticker).execute()
+
+
 def test_performance_omits_windows_without_history(client, db):
     ticker = "ZZSHORT"
     _seed(db, ticker, {0: 50.0, 1: 48.0})  # only two days of data

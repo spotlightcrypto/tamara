@@ -1,5 +1,5 @@
 /** Tamara logo (brutalist): a hard black square with an acid "T" + a mono,
- *  uppercase wordmark ending in a block cursor. No rounding. */
+ *  uppercase wordmark. No rounding. */
 export function Logo({
   withWordmark = true,
   size = 26,
@@ -20,7 +20,6 @@ export function Logo({
       {withWordmark && (
         <span className="font-display text-lg font-bold uppercase tracking-tight text-ink">
           Tamara
-          <span className="ml-0.5 inline-block h-[1.05em] w-[0.5ch] translate-y-[0.12em] bg-ink align-middle" />
         </span>
       )}
     </span>

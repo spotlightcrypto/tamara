@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
+import type { User } from '@supabase/supabase-js'
 import { api } from './lib/api'
 import { Header } from './Header'
 import { Markdown } from './Markdown'
 import { PriceSidebar } from './PriceSidebar'
-import { formatDate, timeAgo } from './lib/time'
+import { formatDateTime, timeAgo } from './lib/time'
 import type { Company, Narrative, Note, Source } from './lib/types'
 
-export function NarrativeDetail() {
+export function NarrativeDetail({ user }: { user: User }) {
+  const username = user.email?.split('@')[0] ?? 'you'
   const { id } = useParams<{ id: string }>()
   const [narrative, setNarrative] = useState<Narrative | null>(null)
   const [companies, setCompanies] = useState<Company[]>([])
@@ -71,7 +73,7 @@ export function NarrativeDetail() {
 
   return (
     <div className="min-h-screen bg-concrete text-ink">
-      <Header />
+      <Header maxW="max-w-6xl" />
       <main className="mx-auto max-w-6xl px-4 py-8">
         <Link
           to="/"
@@ -125,9 +127,10 @@ export function NarrativeDetail() {
               ))}
             </div>
 
-            {/* Timestamps up top, under the tickers */}
+            {/* Byline up top, under the tickers */}
             <p className="mt-2 font-mono text-[0.68rem] uppercase tracking-wide text-muted">
-              created {formatDate(narrative.created_at)} · updated {timeAgo(narrative.updated_at)}
+              created by {username} · {formatDateTime(narrative.created_at)}
+              <span className="ml-1">· updated {timeAgo(narrative.updated_at)}</span>
             </p>
 
             {sources.length > 0 && (
@@ -201,7 +204,7 @@ export function NarrativeDetail() {
             </section>
            </div>
 
-            <PriceSidebar companies={companies} />
+            <PriceSidebar companies={companies} createdAt={narrative.created_at} />
           </div>
         )}
       </main>

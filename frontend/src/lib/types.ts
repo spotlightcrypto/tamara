@@ -39,6 +39,9 @@ export interface PricePerformance {
   ticker: string
   as_of: string | null
   performance: Record<string, number> // e.g. { "1D": -2.05, "1W": 12.5, ... }
+  since_date?: string | null
+  since_close?: number | null
+  since_change?: number | null
 }
 
 export interface Source {

@@ -29,7 +29,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home user={session.user} />} />
         <Route path="/profile" element={<Profile user={session.user} />} />
-        <Route path="/narratives/:id" element={<NarrativeDetail />} />
+        <Route path="/narratives/:id" element={<NarrativeDetail user={session.user} />} />
         <Route path="/companies/:id" element={<CompanyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

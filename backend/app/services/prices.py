@@ -108,9 +108,11 @@ def _pct(latest: float, ref: float) -> float:
     return round((latest - ref) / ref * 100, 2)
 
 
-def performance(db: Client, ticker: str) -> PricePerformance:
+def performance(db: Client, ticker: str, since: date | None = None) -> PricePerformance:
     """Compute a ticker's percentage performance over the daily windows from the
-    cached bars. Windows without enough history are omitted."""
+    cached bars. Windows without enough history are omitted. If `since` is given
+    (e.g. a narrative's creation date), also return the close on/before it and
+    the % change since."""
     response = (
         db.table("daily_bars")
         .select("date,close")
@@ -142,4 +144,19 @@ def performance(db: Client, ticker: str) -> PricePerformance:
         if ref is not None:
             perf[label] = _pct(latest_close, ref)
 
-    return PricePerformance(ticker=ticker, as_of=latest_date, performance=perf)
+    since_date = since_close = since_change = None
+    if since is not None:
+        for bar_date, bar_close in bars:  # desc -> first bar on/before `since`
+            if bar_date <= since:
+                since_date, since_close = bar_date, bar_close
+                since_change = _pct(latest_close, bar_close)
+                break
+
+    return PricePerformance(
+        ticker=ticker,
+        as_of=latest_date,
+        performance=perf,
+        since_date=since_date,
+        since_close=since_close,
+        since_change=since_change,
+    )

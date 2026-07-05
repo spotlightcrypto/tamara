@@ -6,19 +6,30 @@ import type { Company, PricePerformance } from './lib/types'
 const WINDOWS = ['1D', '1W', '1M', '3M', '6M', '1Y']
 
 // Right-rail quotes for the tickers a narrative is about: price performance over
-// standard windows, read from our cached daily bars.
-export function PriceSidebar({ companies }: { companies: Company[] }) {
+// standard windows plus the price when the narrative was created, read from our
+// cached daily bars.
+export function PriceSidebar({
+  companies,
+  createdAt,
+}: {
+  companies: Company[]
+  createdAt: string
+}) {
   const [perf, setPerf] = useState<Record<string, PricePerformance>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
+    const since = createdAt.slice(0, 10) // YYYY-MM-DD
     ;(async () => {
       setLoading(true)
       const entries = await Promise.all(
         companies.map(async (c) => {
           try {
-            return [c.id, await api.get<PricePerformance>(`/prices/${c.ticker}/performance`)] as const
+            return [
+              c.id,
+              await api.get<PricePerformance>(`/prices/${c.ticker}/performance?since=${since}`),
+            ] as const
           } catch {
             return [c.id, { ticker: c.ticker, as_of: null, performance: {} }] as const
           }
@@ -32,7 +43,7 @@ export function PriceSidebar({ companies }: { companies: Company[] }) {
     return () => {
       cancelled = true
     }
-  }, [companies])
+  }, [companies, createdAt])
 
   if (companies.length === 0) return null
 
@@ -68,6 +79,23 @@ export function PriceSidebar({ companies }: { companies: Company[] }) {
                     )
                   })}
                 </div>
+                {typeof p?.since_close === 'number' && (
+                  <div className="mt-2 border-t-2 border-ink pt-1.5 font-mono text-xs">
+                    <div className="flex items-baseline justify-between">
+                      <span className="text-muted">@ created</span>
+                      <span>
+                        ${p.since_close.toFixed(2)}
+                        {typeof p.since_change === 'number' && (
+                          <span className={p.since_change >= 0 ? 'text-up' : 'text-down'}>
+                            {' '}
+                            ({p.since_change >= 0 ? '+' : ''}
+                            {p.since_change.toFixed(1)}%)
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <div className="mt-1.5 font-mono text-[0.6rem] uppercase tracking-wide text-muted">
                   {loading && !p ? 'loading…' : asOf ? `as of ${asOf}` : 'no price data'}
                 </div>

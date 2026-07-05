@@ -8,12 +8,14 @@ const navItem = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'bg-acid' : 'bg-surface hover:bg-acid'
   }`
 
-export function Header() {
+// `maxW` should match the page's content container so the logo/nav align with
+// it (most pages are max-w-3xl; the narrative page is wider for its sidebar).
+export function Header({ maxW = 'max-w-3xl' }: { maxW?: string }) {
   return (
     <>
       <div className="h-1.5 w-full border-b-2 border-ink bg-acid" />
       <header className="border-b-2 border-ink bg-surface">
-        <div className="mx-auto flex max-w-3xl items-center justify-between px-4 py-2.5">
+        <div className={`mx-auto flex ${maxW} items-center justify-between px-4 py-2.5`}>
           <Link to="/">
             <Logo />
           </Link>

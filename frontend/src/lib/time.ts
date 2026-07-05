@@ -6,6 +6,17 @@ export function formatDate(iso: string): string {
   })
 }
 
+/** Date + time to the minute, e.g. "Jul 3, 2026, 2:30 PM". */
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  })
+}
+
 /** Coarse relative time, e.g. "just now", "5m ago", "3h ago", "2d ago", else a date. */
 export function timeAgo(iso: string): string {
   const seconds = Math.floor((Date.now() - new Date(iso).getTime()) / 1000)

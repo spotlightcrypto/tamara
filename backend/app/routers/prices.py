@@ -19,10 +19,14 @@ router = APIRouter(tags=["prices"])
 
 @router.get("/prices/{ticker}/performance")
 async def get_performance(
-    ticker: str, user: CurrentUserDep, db: UserDbDep
+    ticker: str,
+    user: CurrentUserDep,
+    db: UserDbDep,
+    since: date | None = Query(default=None, description="Reference date (YYYY-MM-DD), e.g. narrative creation"),
 ) -> PricePerformance:
-    """A ticker's percentage performance over the daily windows (1D/1W/1M/3M/6M/1Y)."""
-    return service.performance(db, ticker.strip().upper())
+    """A ticker's percentage performance over the daily windows (1D/1W/1M/3M/6M/1Y),
+    plus the price on/before `since` if provided."""
+    return service.performance(db, ticker.strip().upper(), since=since)
 
 
 @router.post("/prices/ingest")
