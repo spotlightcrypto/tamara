@@ -16,6 +16,7 @@ class PricePerformance(BaseModel):
 
     ticker: str
     as_of: date | None  # date of the latest bar the numbers are computed from
+    price: float | None = None  # the latest close (current price)
     performance: dict[str, float]
 
     # Optional "since a reference date" (e.g. when a narrative was created): the

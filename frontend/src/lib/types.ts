@@ -38,6 +38,7 @@ export interface Note {
 export interface PricePerformance {
   ticker: string
   as_of: string | null
+  price?: number | null // latest close (current price)
   performance: Record<string, number> // e.g. { "1D": -2.05, "1W": 12.5, ... }
   since_date?: string | null
   since_close?: number | null

@@ -155,6 +155,7 @@ def performance(db: Client, ticker: str, since: date | None = None) -> PricePerf
     return PricePerformance(
         ticker=ticker,
         as_of=latest_date,
+        price=latest_close,
         performance=perf,
         since_date=since_date,
         since_close=since_close,

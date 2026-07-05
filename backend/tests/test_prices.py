@@ -27,6 +27,7 @@ def test_performance_computes_windows(client, db):
 
     perf = svc.performance(db, ticker)
     assert perf.as_of == today
+    assert perf.price == 110.0  # latest close = current price
     p = perf.performance
     assert p["1D"] == round((110 - 108) / 108 * 100, 2)
     assert p["1W"] == 10.0                       # 110 vs 100
