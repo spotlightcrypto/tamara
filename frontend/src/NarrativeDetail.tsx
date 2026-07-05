@@ -6,16 +6,9 @@ import { api } from './lib/api'
 import { Header } from './Header'
 import { Markdown } from './Markdown'
 import { QuoteCard } from './QuoteCard'
+import { Label } from './ui'
 import { formatDateTime, timeAgo } from './lib/time'
 import type { Company, Narrative, Note, PricePerformance, Source } from './lib/types'
-
-function Label({ children }: { children: React.ReactNode }) {
-  return (
-    <span className="inline-block bg-acid px-1.5 py-0.5 font-mono text-[0.6rem] font-bold uppercase tracking-widest text-ink">
-      {children}
-    </span>
-  )
-}
 
 export function NarrativeDetail({ user }: { user: User }) {
   const { id } = useParams<{ id: string }>()

@@ -50,18 +50,18 @@ export function CompanyPage() {
 
         {company && (
           <>
-            <div className="mt-4 border-2 border-ink bg-surface shadow-hard">
-              <div className="border-b-2 border-ink bg-acid px-4 py-1.5 font-mono text-sm font-bold uppercase tracking-widest">
+            <div className="mt-4 border-2 border-ink bg-ink px-4 py-4 shadow-hard">
+              <div className="font-mono text-sm font-bold uppercase tracking-widest text-acid">
                 {company.symbol}
               </div>
-              <div className="p-4">
-                <h1 className="font-display text-3xl font-bold tracking-tight">{company.name}</h1>
-                {company.sector && (
-                  <p className="mt-1 font-mono text-xs uppercase tracking-wide text-muted">
-                    {company.sector}
-                  </p>
-                )}
-              </div>
+              <h1 className="mt-0.5 font-display text-2xl font-bold tracking-tight text-surface sm:text-3xl">
+                {company.name}
+              </h1>
+              {company.sector && (
+                <p className="mt-0.5 font-mono text-xs uppercase tracking-wide text-surface/50">
+                  {company.sector}
+                </p>
+              )}
             </div>
 
             <h2 className="mt-8 font-display text-xl font-bold uppercase tracking-tight">

@@ -40,16 +40,16 @@ export function Home({ user }: { user: User }) {
     <div className="min-h-screen bg-concrete text-ink">
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <h1 className="font-display text-4xl font-bold uppercase tracking-tight">New narrative</h1>
-        <p className="mt-1 text-sm uppercase tracking-wide text-muted">
-          // drop in a link, a note, a thesis — Tamara takes it from there
-        </p>
-
-        <form onSubmit={generate} className="mt-6 border-2 border-ink bg-surface shadow-hard">
-          <div className="border-b-2 border-ink bg-acid px-4 py-1.5 text-xs font-bold uppercase tracking-widest">
-            Kernel
+        <form onSubmit={generate} className="border-2 border-ink shadow-hard">
+          <div className="bg-ink px-4 py-3">
+            <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-surface">
+              New narrative
+            </h1>
+            <p className="mt-0.5 font-mono text-[0.68rem] uppercase tracking-wide text-surface/50">
+              // drop in a link, a note, a thesis — Tamara takes it from there
+            </p>
           </div>
-          <div className="p-4">
+          <div className="bg-surface p-4">
             <textarea
               value={kernel}
               onChange={(e) => setKernel(e.target.value)}

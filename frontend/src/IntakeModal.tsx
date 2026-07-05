@@ -5,6 +5,7 @@ import { api, ApiError } from './lib/api'
 import { MAX_COMPANIES, POSITIONING_LABELS } from './lib/types'
 import type { Answer, IntakeState, Proposal, ProposalCompany, Question } from './lib/types'
 import { MarkdownEditor } from './MarkdownEditor'
+import { Label } from './ui'
 
 type Stage = 'processing' | 'questions' | 'proposal' | 'error'
 type Phase = 'reading' | 'thinking' | 'synthesizing'
@@ -183,11 +184,11 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
         className="max-h-[88vh] w-full max-w-2xl overflow-y-auto border-2 border-ink bg-surface shadow-hard-lg"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b-2 border-ink bg-acid px-4 py-2">
-          <span className="text-xs font-bold uppercase tracking-widest">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b-2 border-ink bg-ink px-4 py-2.5">
+          <span className="font-mono text-xs font-bold uppercase tracking-widest text-acid">
             {stage === 'proposal' ? 'Review & edit' : stage === 'questions' ? `Sharpen · round ${round}` : 'New narrative'}
           </span>
-          <button onClick={onClose} aria-label="Close" className="hover:opacity-70">
+          <button onClick={onClose} aria-label="Close" className="text-surface hover:text-acid">
             <X size={18} strokeWidth={2.5} />
           </button>
         </div>
@@ -250,7 +251,7 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
 
             {/* Positioning — auto-generated stance label, editable to anything */}
             <div className="flex items-center gap-2">
-              <span className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">Positioning</span>
+              <Label>Positioning</Label>
               <input list="positioning-labels" value={proposal.positioning} maxLength={15}
                 onChange={(e) => P({ positioning: e.target.value })}
                 className="w-40 border-2 border-ink bg-acid px-2 py-0.5 font-mono text-sm font-bold uppercase outline-none focus:ring-2 focus:ring-ink" />
@@ -264,7 +265,7 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
 
             <div>
               <div className="flex items-baseline justify-between">
-                <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">Companies</div>
+                <Label>Companies</Label>
                 <div className="font-mono text-[0.65rem] uppercase tracking-wide text-muted">
                   {proposal.companies.length} / {MAX_COMPANIES}
                 </div>
@@ -296,9 +297,7 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
               {/* Agent-suggested proximate peers — tap to add (even if not central). */}
               {proposal.suggested_companies.length > 0 && proposal.companies.length < MAX_COMPANIES && (
                 <div className="mt-2">
-                  <div className="text-[0.62rem] font-bold uppercase tracking-widest text-muted">
-                    Suggested — tap to add
-                  </div>
+                  <Label>Suggested — tap to add</Label>
                   <div className="mt-1 flex flex-wrap gap-1.5">
                     {proposal.suggested_companies.map((c, i) => (
                       <button key={`${coKey(c)}:${i}`} onClick={() => addCompanyObj(c)}
@@ -315,7 +314,7 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
             {/* The whole argument — bull/bear/catalyst/risk/open questions — as
                 one editable markdown doc. */}
             <div>
-              <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">Document</div>
+              <Label>Document</Label>
               <div className="mt-1.5">
                 <MarkdownEditor value={proposal.body_md} onChange={(v) => P({ body_md: v })} />
               </div>
@@ -323,9 +322,7 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
 
             {/* Ask the agent to revise, given the current version + instructions */}
             <div className="border-2 border-dashed border-ink p-3">
-              <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">
-                Regenerate with instructions
-              </div>
+              <Label>Regenerate with instructions</Label>
               <textarea rows={2} value={regenInstructions}
                 onChange={(e) => setRegenInstructions(e.target.value)}
                 placeholder="e.g. sharpen the bear case, add a valuation angle, make it more aggressive…"
@@ -371,10 +368,10 @@ function QuestionStep({
           <div key={i} className={`h-1.5 flex-1 border border-ink ${i <= index ? 'bg-acid' : 'bg-concrete'}`} />
         ))}
       </div>
-      <div className="text-[0.7rem] font-bold uppercase tracking-widest text-muted">
+      <Label>
         {q.header} · {index + 1} / {total}
-      </div>
-      <div className="mt-1 font-display text-2xl font-bold">{q.question}</div>
+      </Label>
+      <div className="mt-2 font-display text-2xl font-bold">{q.question}</div>
       {q.open_ended ? (
         // Open, answer-in-your-own-words prompt — a roomy textarea, no options.
         <textarea

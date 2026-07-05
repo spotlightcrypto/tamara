@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { Label } from './ui'
 import { formatDate, timeAgo } from './lib/time'
 import type { NarrativeWithCompanies } from './lib/types'
 
@@ -35,8 +36,9 @@ export function NarrativeCard({
         {n.thesis && (
           <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-muted">{n.thesis}</p>
         )}
-        {n.companies.length > 0 && (
-          <div className="mt-3 flex flex-wrap gap-1.5">
+        {(n.positioning || n.companies.length > 0) && (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            {n.positioning && <Label>{n.positioning}</Label>}
             {n.companies.map((c) => (
               // Each ticker navigates to that company's page.
               <Link

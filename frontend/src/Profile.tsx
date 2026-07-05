@@ -23,19 +23,14 @@ export function Profile({ user }: { user: User }) {
     <div className="min-h-screen bg-concrete text-ink">
       <Header />
       <main className="mx-auto max-w-3xl px-4 py-8">
-        <section className="border-2 border-ink bg-surface shadow-hard">
-          <div className="border-b-2 border-ink bg-acid px-4 py-1.5 text-xs font-bold uppercase tracking-widest">
-            Profile
+        <section className="flex items-center gap-4 border-2 border-ink bg-ink p-4 shadow-hard">
+          <div className="grid h-14 w-14 shrink-0 place-items-center border-2 border-acid bg-acid font-display text-2xl font-bold uppercase text-ink">
+            {user.email?.[0] ?? '?'}
           </div>
-          <div className="flex items-center gap-4 p-4">
-            <div className="grid h-14 w-14 place-items-center border-2 border-ink bg-ink font-display text-2xl font-bold uppercase text-acid">
-              {user.email?.[0] ?? '?'}
-            </div>
-            <div>
-              <div className="font-mono text-sm break-all">{user.email}</div>
-              <div className="mt-0.5 font-mono text-xs uppercase tracking-wide text-muted">
-                {loading ? '…' : `${items.length} narrative${items.length === 1 ? '' : 's'}`}
-              </div>
+          <div className="min-w-0">
+            <div className="font-mono text-sm break-all text-surface">{user.email}</div>
+            <div className="mt-0.5 font-mono text-xs uppercase tracking-wide text-surface/50">
+              {loading ? '…' : `${items.length} narrative${items.length === 1 ? '' : 's'}`}
             </div>
           </div>
         </section>
