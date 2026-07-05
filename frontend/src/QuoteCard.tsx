@@ -21,7 +21,7 @@ export function QuoteCard({
     <div>
       <div className="flex items-baseline justify-between gap-2">
         <Link
-          to={`/companies/${company.id}`}
+          to={`/companies/${company.symbol.toLowerCase()}`}
           className="border-2 border-ink bg-concrete px-2 py-0.5 font-mono text-xs font-bold transition-all hover:bg-acid"
         >
           {company.symbol}

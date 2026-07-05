@@ -111,3 +111,19 @@ def get(db: Client, company_id: UUID) -> Company | None:
     if not response.data:
         return None
     return Company.model_validate(response.data[0])
+
+
+def get_by_symbol(db: Client, ticker: str, exchange: str) -> Company | None:
+    """Fetch a company by its exchange-qualified symbol (e.g. CRWV + NASDAQ),
+    matching the unique (ticker, exchange) identity. Case-insensitive on input."""
+    response = (
+        db.table("companies")
+        .select("*")
+        .eq("ticker", ticker.strip().upper())
+        .eq("exchange", exchange.strip().upper())
+        .limit(1)
+        .execute()
+    )
+    if not response.data:
+        return None
+    return Company.model_validate(response.data[0])

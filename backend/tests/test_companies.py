@@ -101,6 +101,16 @@ def test_get_missing_company_returns_404(client):
     assert client.get(f"/companies/{MISSING_ID}").status_code == 404
 
 
+def test_get_company_by_symbol(client, make_narrative):
+    n = make_narrative()
+    client.post(f"/narratives/{n['id']}/companies", json={"ticker": "AMD:NASDAQ"})
+    # case-insensitive lookup by the exchange-qualified symbol (the readable route)
+    fetched = client.get("/companies/by-symbol/amd/nasdaq")
+    assert fetched.status_code == 200
+    assert fetched.json()["symbol"] == "AMD:NASDAQ"
+    assert client.get("/companies/by-symbol/NOPE/NASDAQ").status_code == 404
+
+
 def test_detach_missing_link_returns_404(client, make_narrative):
     n = make_narrative()
     assert client.delete(

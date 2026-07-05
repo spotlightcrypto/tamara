@@ -123,7 +123,7 @@ export function NarrativeDetail({ user }: { user: User }) {
               <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[0.62rem] uppercase tracking-wide">
                 {n.positioning && <span className="bg-acid px-1.5 py-0.5 font-bold text-ink">{n.positioning}</span>}
                 {companies.map((c) => (
-                  <Link key={c.id} to={`/companies/${c.id}`} className="text-surface hover:text-acid">
+                  <Link key={c.id} to={`/companies/${c.symbol.toLowerCase()}`} className="text-surface hover:text-acid">
                     {c.symbol}
                   </Link>
                 ))}

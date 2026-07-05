@@ -7,7 +7,8 @@ import { NarrativeCard } from './NarrativeCard'
 import type { Company, NarrativeWithCompanies } from './lib/types'
 
 export function CompanyPage() {
-  const { id } = useParams<{ id: string }>()
+  // The route slug is the exchange-qualified symbol, e.g. "crwv:nasdaq".
+  const { symbol } = useParams<{ symbol: string }>()
   const [company, setCompany] = useState<Company | null>(null)
   const [narratives, setNarratives] = useState<NarrativeWithCompanies[]>([])
   const [loading, setLoading] = useState(true)
@@ -15,20 +16,24 @@ export function CompanyPage() {
 
   useEffect(() => {
     ;(async () => {
+      const [ticker, exchange] = (symbol ?? '').split(':')
+      if (!ticker || !exchange) {
+        setNotFound(true)
+        setLoading(false)
+        return
+      }
       try {
-        const [c, ns] = await Promise.all([
-          api.get<Company>(`/companies/${id}`),
-          api.get<NarrativeWithCompanies[]>(`/companies/${id}/narratives`),
-        ])
+        // Resolve the company by symbol, then load its narratives by id.
+        const c = await api.get<Company>(`/companies/by-symbol/${ticker}/${exchange}`)
         setCompany(c)
-        setNarratives(ns)
+        setNarratives(await api.get<NarrativeWithCompanies[]>(`/companies/${c.id}/narratives`))
       } catch {
         setNotFound(true)
       } finally {
         setLoading(false)
       }
     })()
-  }, [id])
+  }, [symbol])
 
   return (
     <div className="min-h-screen bg-concrete text-ink">

@@ -50,6 +50,18 @@ async def detach_company(
         raise HTTPException(status.HTTP_404_NOT_FOUND, "company not attached")
 
 
+@router.get("/companies/by-symbol/{ticker}/{exchange}")
+async def get_company_by_symbol(
+    ticker: str, exchange: str, user: CurrentUserDep, db: UserDbDep
+) -> Company:
+    """Fetch a company by its exchange-qualified symbol (e.g. CRWV / NASDAQ) —
+    backs the readable /companies/<ticker>:<exchange> route."""
+    company = service.get_by_symbol(db, ticker, exchange)
+    if company is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "company not found")
+    return company
+
+
 @router.get("/companies/{company_id}")
 async def get_company(
     company_id: UUID, user: CurrentUserDep, db: UserDbDep
