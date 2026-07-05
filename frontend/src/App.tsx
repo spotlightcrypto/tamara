@@ -7,6 +7,7 @@ import { Home } from './Home'
 import { Profile } from './Profile'
 import { NarrativeDetail } from './NarrativeDetail'
 import { CompanyPage } from './CompanyPage'
+import { DesignGallery } from './design/DesignGallery'
 
 function App() {
   const [session, setSession] = useState<Session | null>(null)
@@ -30,6 +31,8 @@ function App() {
         <Route path="/" element={<Home user={session.user} />} />
         <Route path="/profile" element={<Profile user={session.user} />} />
         <Route path="/narratives/:id" element={<NarrativeDetail user={session.user} />} />
+        {/* TEMPORARY: design-option gallery for the narrative page (A/B/C/D). */}
+        <Route path="/design/:id" element={<DesignGallery user={session.user} />} />
         <Route path="/companies/:id" element={<CompanyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

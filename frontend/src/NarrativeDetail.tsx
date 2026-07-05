@@ -75,12 +75,21 @@ export function NarrativeDetail({ user }: { user: User }) {
     <div className="min-h-screen bg-concrete text-ink">
       <Header maxW="max-w-6xl" />
       <main className="mx-auto max-w-6xl px-4 py-8">
-        <Link
-          to="/"
-          className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted hover:text-ink"
-        >
-          <ArrowLeft size={14} strokeWidth={2.5} /> Back
-        </Link>
+        <div className="flex items-center justify-between">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted hover:text-ink"
+          >
+            <ArrowLeft size={14} strokeWidth={2.5} /> Back
+          </Link>
+          {/* TEMPORARY: jump to the design-option gallery */}
+          <Link
+            to={`/design/${id}`}
+            className="border-2 border-dashed border-ink px-2 py-0.5 text-[0.62rem] font-bold uppercase tracking-wide text-muted hover:bg-acid hover:text-ink"
+          >
+            ⌗ preview designs
+          </Link>
+        </div>
 
         {loading && <p className="mt-6 text-sm uppercase tracking-wide text-muted">Loading…</p>}
         {!loading && notFound && (
