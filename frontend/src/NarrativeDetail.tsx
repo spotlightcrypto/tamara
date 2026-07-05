@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft, ExternalLink } from 'lucide-react'
-import type { User } from '@supabase/supabase-js'
 import { api } from './lib/api'
 import { Header } from './Header'
 import { Markdown } from './Markdown'
@@ -10,9 +9,8 @@ import { Label } from './ui'
 import { formatDateTime, timeAgo } from './lib/time'
 import type { Company, Narrative, Note, PricePerformance, Source } from './lib/types'
 
-export function NarrativeDetail({ user }: { user: User }) {
+export function NarrativeDetail() {
   const { id } = useParams<{ id: string }>()
-  const username = user.email?.split('@')[0] ?? 'you'
   const [narrative, setNarrative] = useState<Narrative | null>(null)
   const [companies, setCompanies] = useState<Company[]>([])
   const [sources, setSources] = useState<Source[]>([])
@@ -128,7 +126,7 @@ export function NarrativeDetail({ user }: { user: User }) {
                   </Link>
                 ))}
                 <span className="text-surface/50">
-                  created by {username} · {formatDateTime(n.created_at)} · upd {timeAgo(n.updated_at)}
+                  created by @{n.author_username ?? '—'} · {formatDateTime(n.created_at)} · upd {timeAgo(n.updated_at)}
                 </span>
               </div>
             </div>

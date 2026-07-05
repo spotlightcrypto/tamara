@@ -3,13 +3,7 @@ import { Label } from './ui'
 import { formatDate, timeAgo } from './lib/time'
 import type { NarrativeWithCompanies } from './lib/types'
 
-export function NarrativeCard({
-  n,
-  creatorEmail,
-}: {
-  n: NarrativeWithCompanies
-  creatorEmail?: string
-}) {
+export function NarrativeCard({ n }: { n: NarrativeWithCompanies }) {
   return (
     <article
       className={`border-2 border-ink bg-surface shadow-hard ${
@@ -53,7 +47,7 @@ export function NarrativeCard({
         )}
       </div>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t-2 border-ink px-4 py-2 font-mono text-[0.68rem] uppercase tracking-wide text-muted">
-        {creatorEmail && <span>◆ {creatorEmail}</span>}
+        {n.author_username && <span>◆ @{n.author_username}</span>}
         <span>created {formatDate(n.created_at)}</span>
         <span>updated {timeAgo(n.updated_at)}</span>
       </div>

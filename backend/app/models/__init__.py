@@ -40,6 +40,7 @@ from app.models.narratives import (
 )
 from app.models.notes import Note, NoteCreate, NoteUpdate
 from app.models.prices import PricePerformance
+from app.models.profiles import Me, Profile, UsernameCheck, UsernameClaim
 from app.models.sources import Source
 from app.models.users import CurrentUser
 
@@ -72,9 +73,13 @@ __all__ = [
     "NarrativeCreate",
     "NarrativeSummary",
     "NarrativeUpdate",
+    "Me",
     "Note",
     "NoteCreate",
     "NoteUpdate",
     "PricePerformance",
+    "Profile",
     "Source",
+    "UsernameCheck",
+    "UsernameClaim",
 ]

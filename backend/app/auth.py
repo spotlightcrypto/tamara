@@ -82,3 +82,21 @@ def get_user_db(token: AccessTokenDep) -> Client:
 
 
 UserDbDep = Annotated[Client, Depends(get_user_db)]
+
+
+def require_username(user: CurrentUserDep, db: UserDbDep) -> str:
+    """Gate for content creation: a user must have claimed a username before they
+    can create/post. Returns the username, or 403s. Defense-in-depth alongside the
+    frontend first-login gate."""
+    from app.services import profiles as profiles_service  # local import: avoid cycle
+
+    profile = profiles_service.get_profile(db, user.id)
+    if profile is None:
+        raise HTTPException(
+            status.HTTP_403_FORBIDDEN, "set a username before creating or posting"
+        )
+    return profile.username
+
+
+# Add this dependency to any create/post endpoint to enforce the username gate.
+RequireUsernameDep = Annotated[str, Depends(require_username)]

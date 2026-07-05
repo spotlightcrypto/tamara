@@ -9,7 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.auth import CurrentUserDep, UserDbDep
+from app.auth import CurrentUserDep, RequireUsernameDep, UserDbDep
 from app.models import Narrative, NarrativeCreate, NarrativeSummary, NarrativeUpdate
 from app.services import narratives as service
 
@@ -24,9 +24,9 @@ async def list_narratives(user: CurrentUserDep, db: UserDbDep) -> list[Narrative
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 async def create_narrative(
-    data: NarrativeCreate, user: CurrentUserDep, db: UserDbDep
+    data: NarrativeCreate, user: CurrentUserDep, db: UserDbDep, _username: RequireUsernameDep
 ) -> Narrative:
-    """Create a narrative owned by the calling user."""
+    """Create a narrative owned by the calling user (requires a username)."""
     return service.create_for_user(db, user.id, data)
 
 

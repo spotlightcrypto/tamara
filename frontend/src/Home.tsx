@@ -1,13 +1,12 @@
 import { useEffect, useState } from 'react'
 import { ArrowRight } from 'lucide-react'
-import type { User } from '@supabase/supabase-js'
 import { api } from './lib/api'
 import { Header } from './Header'
 import { IntakeModal } from './IntakeModal'
 import { NarrativeCard } from './NarrativeCard'
 import type { NarrativeWithCompanies } from './lib/types'
 
-export function Home({ user }: { user: User }) {
+export function Home() {
   const [items, setItems] = useState<NarrativeWithCompanies[]>([])
   const [kernel, setKernel] = useState('')
   const [modalKernel, setModalKernel] = useState<string | null>(null)
@@ -80,7 +79,7 @@ export function Home({ user }: { user: User }) {
             </p>
           )}
           {items.map((n) => (
-            <NarrativeCard key={n.id} n={n} creatorEmail={user.email} />
+            <NarrativeCard key={n.id} n={n} />
           ))}
         </div>
       </main>

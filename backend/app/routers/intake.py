@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.auth import CurrentUserDep, UserDbDep
+from app.auth import CurrentUserDep, RequireUsernameDep, UserDbDep
 from app.models import (
     IntakeAnswerRequest,
     IntakeFinalize,
@@ -20,7 +20,7 @@ router = APIRouter(tags=["intake"])
 
 @router.post("/narratives/intake", status_code=status.HTTP_201_CREATED)
 async def start_intake(
-    data: IntakeStart, user: CurrentUserDep, db: UserDbDep
+    data: IntakeStart, user: CurrentUserDep, db: UserDbDep, _username: RequireUsernameDep
 ) -> IntakeState:
     """Begin an intake from a kernel: ingest it, then return the first round of
     questions. If a URL kernel can't be read, return a structured 422 so the UI
@@ -74,7 +74,8 @@ async def regenerate_intake(
 
 @router.post("/narratives/intake/{draft_id}/finalize", status_code=status.HTTP_201_CREATED)
 async def finalize_intake(
-    draft_id: UUID, data: IntakeFinalize, user: CurrentUserDep, db: UserDbDep
+    draft_id: UUID, data: IntakeFinalize, user: CurrentUserDep, db: UserDbDep,
+    _username: RequireUsernameDep,
 ) -> dict[str, str]:
     """Accept the (edited) proposal: create the real narrative (markdown body +
     positioning) + companies + sources, and mark the draft finalized. Returns the

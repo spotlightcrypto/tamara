@@ -65,6 +65,10 @@ class Narrative(BaseModel):
     body_md: str
     positioning: str | None
     is_active: bool
+    # The creator's public username (resolved from profiles by user_id, so it
+    # always reflects the current username even after a rename). None if the
+    # author hasn't claimed a username yet.
+    author_username: str | None = None
     created_at: datetime
     updated_at: datetime
 

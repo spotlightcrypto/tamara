@@ -7,6 +7,26 @@ export interface Narrative {
   body_md: string
   positioning: string | null
   is_active: boolean
+  author_username: string | null
+  created_at: string
+  updated_at: string
+}
+
+// The caller's own identity (the only place an email is returned, to its owner).
+export interface Me {
+  user_id: string
+  email: string | null
+  username: string | null
+}
+
+export interface UsernameCheck {
+  available: boolean
+  reason?: string | null
+}
+
+export interface Profile {
+  id: string
+  username: string
   created_at: string
   updated_at: string
 }

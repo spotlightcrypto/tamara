@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.auth import CurrentUserDep, UserDbDep
+from app.auth import CurrentUserDep, RequireUsernameDep, UserDbDep
 from app.models import Note, NoteCreate, NoteUpdate
 from app.services import notes as service
 
@@ -17,9 +17,10 @@ router = APIRouter(tags=["notes"])
 
 @router.post("/narratives/{narrative_id}/notes", status_code=status.HTTP_201_CREATED)
 async def create_note(
-    narrative_id: UUID, data: NoteCreate, user: CurrentUserDep, db: UserDbDep
+    narrative_id: UUID, data: NoteCreate, user: CurrentUserDep, db: UserDbDep,
+    _username: RequireUsernameDep,
 ) -> Note:
-    """Add a note to a narrative."""
+    """Add a note to a narrative (requires a username)."""
     note = service.create(db, user.id, narrative_id, data)
     if note is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "narrative not found")

@@ -28,13 +28,27 @@ from app.models import (
 _WITH_COMPANIES = "*, narrative_companies(companies(*))"
 
 
-def _rows_to_summaries(rows: list[dict]) -> list[NarrativeSummary]:
-    """Turn embedded-select rows into NarrativeSummary objects.
+def _author_map(db: Client, user_ids: set) -> dict[str, str]:
+    """Resolve {user_id -> username} from profiles for a set of author ids. We
+    look authors up by user_id (immutable) so the username shown is always
+    current, even after a rename."""
+    ids = [str(u) for u in user_ids if u]
+    if not ids:
+        return {}
+    response = db.table("profiles").select("id,username").in_("id", ids).execute()
+    return {row["id"]: row["username"] for row in response.data}
 
-    Each row carries a `narrative_companies` list like
-    `[{"companies": {...}}, ...]`; we lift the nested company dicts out into a
-    flat `companies` list and drop the join scaffolding.
-    """
+
+def _with_author(db: Client, model, row: dict):
+    """Validate a single narrative row, attaching its author's username."""
+    author = _author_map(db, {row.get("user_id")}).get(str(row.get("user_id")))
+    return model.model_validate({**row, "author_username": author})
+
+
+def _rows_to_summaries(db: Client, rows: list[dict]) -> list[NarrativeSummary]:
+    """Turn embedded-select rows into NarrativeSummary objects (companies flattened
+    from the join, author username resolved from profiles in one batch query)."""
+    authors = _author_map(db, {r.get("user_id") for r in rows})
     summaries = []
     for row in rows:
         links = row.pop("narrative_companies", None) or []
@@ -43,7 +57,10 @@ def _rows_to_summaries(rows: list[dict]) -> list[NarrativeSummary]:
             for link in links
             if link.get("companies")
         ]
-        summaries.append(NarrativeSummary.model_validate({**row, "companies": companies}))
+        author = authors.get(str(row.get("user_id")))
+        summaries.append(
+            NarrativeSummary.model_validate({**row, "companies": companies, "author_username": author})
+        )
     return summaries
 
 
@@ -72,7 +89,7 @@ def list_for_user(db: Client, user_id: UUID) -> list[NarrativeSummary]:
         .order("updated_at", desc=True)
         .execute()
     )
-    return _rows_to_summaries(response.data)
+    return _rows_to_summaries(db, response.data)
 
 
 def list_for_company(db: Client, company_id: UUID) -> list[NarrativeSummary]:
@@ -98,7 +115,7 @@ def list_for_company(db: Client, company_id: UUID) -> list[NarrativeSummary]:
         .order("updated_at", desc=True)
         .execute()
     )
-    return _rows_to_summaries(response.data)
+    return _rows_to_summaries(db, response.data)
 
 
 def create_for_user(db: Client, user_id: UUID, data: NarrativeCreate) -> Narrative:
@@ -112,7 +129,7 @@ def create_for_user(db: Client, user_id: UUID, data: NarrativeCreate) -> Narrati
     }
     response = db.table("narratives").insert(payload).execute()
     # insert returns the inserted rows; we created exactly one.
-    return Narrative.model_validate(response.data[0])
+    return _with_author(db, Narrative, response.data[0])
 
 
 def get_for_user(db: Client, user_id: UUID, narrative_id: UUID) -> Narrative | None:
@@ -129,7 +146,7 @@ def get_for_user(db: Client, user_id: UUID, narrative_id: UUID) -> Narrative | N
     )
     if not response.data:
         return None
-    return Narrative.model_validate(response.data[0])
+    return _with_author(db, Narrative, response.data[0])
 
 
 def update_for_user(
@@ -154,7 +171,7 @@ def update_for_user(
     )
     if not response.data:
         return None
-    return Narrative.model_validate(response.data[0])
+    return _with_author(db, Narrative, response.data[0])
 
 
 def delete_for_user(db: Client, user_id: UUID, narrative_id: UUID) -> bool:

@@ -18,7 +18,7 @@ import pytest
 from fastapi.testclient import TestClient
 from supabase import create_client
 
-from app.auth import get_current_user, get_user_db
+from app.auth import get_current_user, get_user_db, require_username
 from app.config import settings
 from app.db import make_user_client
 from app.main import app
@@ -47,11 +47,25 @@ def client(auth: dict):
     # header — FastAPI calls these instead of the real dependencies.
     app.dependency_overrides[get_current_user] = lambda: test_user
     app.dependency_overrides[get_user_db] = lambda: make_user_client(auth["token"])
+    # Bypass the username gate so the many create-content tests don't each need a
+    # claimed username; the gate itself is tested separately via `gated_client`.
+    app.dependency_overrides[require_username] = lambda: "tester"
 
     with TestClient(app) as c:
         yield c
 
     app.dependency_overrides.clear()  # always reset, even if a test failed
+
+
+@pytest.fixture
+def gated_client(auth: dict):
+    """Like `client` but WITHOUT the username-gate bypass — for testing the gate."""
+    test_user = CurrentUser(id=auth["user_id"], email=TEST_EMAIL)
+    app.dependency_overrides[get_current_user] = lambda: test_user
+    app.dependency_overrides[get_user_db] = lambda: make_user_client(auth["token"])
+    with TestClient(app) as c:
+        yield c
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
