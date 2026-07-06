@@ -20,7 +20,7 @@ async def get_me(user: CurrentUserDep, db: UserDbDep) -> Me:
 
 @router.get("/usernames/check")
 async def check_username(
-    user: CurrentUserDep, db: UserDbDep, u: str = Query(min_length=1, max_length=40)
+    db: UserDbDep, u: str = Query(min_length=1, max_length=40)
 ) -> UsernameCheck:
     """Live availability for a candidate username (UX; the DB is the real gate)."""
     available, reason = service.check_username(db, u)

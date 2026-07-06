@@ -9,7 +9,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
 
-from app.auth import CurrentUserDep, UserDbDep
+from app.auth import UserDbDep
 from app.models import Company, CompanyAttach, NarrativeSummary
 from app.services import companies as service
 from app.services import narratives as narratives_service
@@ -21,7 +21,7 @@ router = APIRouter(tags=["companies"])
     "/narratives/{narrative_id}/companies", status_code=status.HTTP_201_CREATED
 )
 async def attach_company(
-    narrative_id: UUID, data: CompanyAttach, user: CurrentUserDep, db: UserDbDep
+    narrative_id: UUID, data: CompanyAttach, db: UserDbDep
 ) -> Company:
     """Attach a company (by ticker) to a narrative, creating it if new."""
     company = service.attach(db, narrative_id, data)
@@ -32,7 +32,7 @@ async def attach_company(
 
 @router.get("/narratives/{narrative_id}/companies")
 async def list_companies(
-    narrative_id: UUID, user: CurrentUserDep, db: UserDbDep
+    narrative_id: UUID, db: UserDbDep
 ) -> list[Company]:
     """List the companies attached to a narrative."""
     return service.list_for_narrative(db, narrative_id)
@@ -43,7 +43,7 @@ async def list_companies(
     status_code=status.HTTP_204_NO_CONTENT,
 )
 async def detach_company(
-    narrative_id: UUID, company_id: UUID, user: CurrentUserDep, db: UserDbDep
+    narrative_id: UUID, company_id: UUID, db: UserDbDep
 ) -> None:
     """Detach a company from a narrative (the company row persists)."""
     if not service.detach(db, narrative_id, company_id):
@@ -52,7 +52,7 @@ async def detach_company(
 
 @router.get("/companies/by-symbol/{ticker}/{exchange}")
 async def get_company_by_symbol(
-    ticker: str, exchange: str, user: CurrentUserDep, db: UserDbDep
+    ticker: str, exchange: str, db: UserDbDep
 ) -> Company:
     """Fetch a company by its exchange-qualified symbol (e.g. CRWV / NASDAQ) —
     backs the readable /companies/<ticker>:<exchange> route."""
@@ -64,7 +64,7 @@ async def get_company_by_symbol(
 
 @router.get("/companies/{company_id}")
 async def get_company(
-    company_id: UUID, user: CurrentUserDep, db: UserDbDep
+    company_id: UUID, db: UserDbDep
 ) -> Company:
     """Fetch a single company by id."""
     company = service.get(db, company_id)
@@ -75,7 +75,7 @@ async def get_company(
 
 @router.get("/companies/{company_id}/narratives")
 async def list_company_narratives(
-    company_id: UUID, user: CurrentUserDep, db: UserDbDep
+    company_id: UUID, db: UserDbDep
 ) -> list[NarrativeSummary]:
     """List the caller's narratives that involve this company (RLS-scoped)."""
     return narratives_service.list_for_company(db, company_id)

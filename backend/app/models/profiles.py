@@ -28,7 +28,7 @@ class Me(BaseModel):
 class UsernameClaim(BaseModel):
     """Request body to set/change the caller's username."""
 
-    username: str = Field(min_length=1, max_length=40)
+    username: str = Field(min_length=1, max_length=20)
 
 
 class UsernameCheck(BaseModel):

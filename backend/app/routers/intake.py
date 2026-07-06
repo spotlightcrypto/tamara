@@ -40,7 +40,7 @@ async def start_intake(
 
 @router.post("/narratives/intake/{draft_id}/answer")
 async def answer_intake(
-    draft_id: UUID, data: IntakeAnswerRequest, user: CurrentUserDep, db: UserDbDep
+    draft_id: UUID, data: IntakeAnswerRequest, db: UserDbDep
 ) -> IntakeState:
     """Submit answers; get the next round of questions or the synthesized proposal."""
     try:
@@ -50,9 +50,7 @@ async def answer_intake(
 
 
 @router.get("/narratives/intake/{draft_id}")
-async def get_intake(
-    draft_id: UUID, user: CurrentUserDep, db: UserDbDep
-) -> IntakeState:
+async def get_intake(draft_id: UUID, db: UserDbDep) -> IntakeState:
     """Reload an in-progress draft (resume)."""
     try:
         return service.get_draft(db, draft_id)
@@ -62,7 +60,7 @@ async def get_intake(
 
 @router.post("/narratives/intake/{draft_id}/regenerate")
 async def regenerate_intake(
-    draft_id: UUID, data: IntakeRegenerate, user: CurrentUserDep, db: UserDbDep
+    draft_id: UUID, data: IntakeRegenerate, db: UserDbDep
 ) -> IntakeState:
     """Re-synthesize the proposal from the current (edited) version plus the
     user's free-text instructions. Returns the revised proposal."""

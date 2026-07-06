@@ -28,17 +28,13 @@ async def create_note(
 
 
 @router.get("/narratives/{narrative_id}/notes")
-async def list_notes(
-    narrative_id: UUID, user: CurrentUserDep, db: UserDbDep
-) -> list[Note]:
+async def list_notes(narrative_id: UUID, db: UserDbDep) -> list[Note]:
     """List a narrative's notes."""
     return service.list_for_narrative(db, narrative_id)
 
 
 @router.patch("/notes/{note_id}")
-async def update_note(
-    note_id: UUID, data: NoteUpdate, user: CurrentUserDep, db: UserDbDep
-) -> Note:
+async def update_note(note_id: UUID, data: NoteUpdate, db: UserDbDep) -> Note:
     """Edit a note."""
     note = service.update(db, note_id, data)
     if note is None:
@@ -47,7 +43,7 @@ async def update_note(
 
 
 @router.delete("/notes/{note_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_note(note_id: UUID, user: CurrentUserDep, db: UserDbDep) -> None:
+async def delete_note(note_id: UUID, db: UserDbDep) -> None:
     """Delete a note."""
     if not service.delete(db, note_id):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "note not found")

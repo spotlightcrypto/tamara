@@ -74,10 +74,17 @@ def get_current_user(token: AccessTokenDep) -> CurrentUser:
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_user)]
 
 
-def get_user_db(token: AccessTokenDep) -> Client:
-    """Per-request Supabase client authenticated as the caller, for RLS-scoped
-    data access. Pair it with CurrentUserDep on data routes: that dependency
-    verifies the token; this one attaches it to the database client."""
+def get_user_db(token: AccessTokenDep, _user: CurrentUserDep) -> Client:
+    """An AUTHENTICATED, RLS-scoped Supabase client for the caller.
+
+    Depending on `CurrentUserDep` here means every data route that needs the DB
+    also verifies the JWT locally (401 on a bad/expired token) — you can never get
+    a scoped DB client without a verified user. So a route only needs to declare a
+    `user: CurrentUserDep` param when it actually reads the user's id/email;
+    otherwise `db: UserDbDep` alone both authenticates and scopes the query.
+    (`_user` is unused here on purpose — it's declared for its verification
+    side-effect; FastAPI caches it per request, so it runs at most once.)
+    """
     return make_user_client(token)
 
 

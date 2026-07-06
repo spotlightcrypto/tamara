@@ -9,7 +9,7 @@ from datetime import date
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from app.auth import CurrentUserDep, UserDbDep
+from app.auth import UserDbDep
 from app.models import PricePerformance
 from app.providers.prices import PricesError
 from app.services import prices as service
@@ -20,7 +20,6 @@ router = APIRouter(tags=["prices"])
 @router.get("/prices/{ticker}/performance")
 async def get_performance(
     ticker: str,
-    user: CurrentUserDep,
     db: UserDbDep,
     since: date | None = Query(default=None, description="Reference date (YYYY-MM-DD), e.g. narrative creation"),
 ) -> PricePerformance:
@@ -31,7 +30,6 @@ async def get_performance(
 
 @router.post("/prices/ingest")
 async def ingest(
-    user: CurrentUserDep,
     db: UserDbDep,
     day: date | None = Query(default=None, description="Trading day (YYYY-MM-DD); defaults to today"),
 ) -> dict[str, int | str]:
@@ -46,7 +44,7 @@ async def ingest(
 
 
 @router.post("/prices/ingest/watchlist")
-async def ingest_watchlist(user: CurrentUserDep, db: UserDbDep) -> dict:
+async def ingest_watchlist(db: UserDbDep) -> dict:
     """PROTOTYPE (keyless): cache ~1y of history for every ticker in a narrative,
     via Yahoo. Lets us prove the pipeline before the Polygon key lands."""
     return service.ingest_watchlist(db)

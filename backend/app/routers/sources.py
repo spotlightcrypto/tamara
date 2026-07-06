@@ -8,7 +8,7 @@ from uuid import UUID
 
 from fastapi import APIRouter
 
-from app.auth import CurrentUserDep, UserDbDep
+from app.auth import UserDbDep
 from app.models import Source
 from app.services import sources as service
 
@@ -17,7 +17,7 @@ router = APIRouter(tags=["sources"])
 
 @router.get("/narratives/{narrative_id}/sources")
 async def list_sources(
-    narrative_id: UUID, user: CurrentUserDep, db: UserDbDep
+    narrative_id: UUID, db: UserDbDep
 ) -> list[Source]:
     """List a narrative's sources (the external links it's grounded in)."""
     return service.list_for_narrative(db, narrative_id)
