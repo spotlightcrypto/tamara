@@ -31,22 +31,6 @@ export interface Profile {
   updated_at: string
 }
 
-export interface NarrativeCreate {
-  title: string
-  thesis?: string
-}
-
-export interface Item {
-  id: string
-  narrative_id: string
-  kind: 'bull' | 'bear' | 'catalyst' | 'risk'
-  body: string
-  event_date: string | null
-  position: number
-  created_at: string
-  updated_at: string
-}
-
 export interface Note {
   id: string
   narrative_id: string
@@ -116,8 +100,6 @@ export interface Answer {
   free_text?: string | null
   skipped?: boolean
 }
-
-export type ItemKind = 'bull' | 'bear' | 'catalyst' | 'risk'
 
 export interface ProposalCompany {
   ticker: string
