@@ -39,7 +39,10 @@ export function Home() {
   return (
     <div className="min-h-screen bg-concrete text-ink">
       <Header />
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-8">
+       {/* Single-column content, left-aligned in the wider frame (right gutter
+           reserved for a future rail). */}
+       <div className="max-w-3xl">
         <form onSubmit={generate} className="border-2 border-ink shadow-hard">
           <div className="bg-ink px-4 py-3">
             <h1 className="font-display text-2xl font-bold uppercase tracking-tight text-surface">
@@ -81,6 +84,7 @@ export function Home() {
             items.map((n) => <NarrativeCard key={n.id} n={n} />)
           )}
         </div>
+       </div>
       </main>
 
       {modalKernel !== null && (

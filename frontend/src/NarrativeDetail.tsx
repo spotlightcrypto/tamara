@@ -85,7 +85,7 @@ export function NarrativeDetail() {
 
   return (
     <div className="min-h-screen bg-concrete text-ink">
-      <Header maxW="max-w-5xl" />
+      <Header />
       <main className="mx-auto max-w-5xl px-4 py-8">
         <Link
           to="/"

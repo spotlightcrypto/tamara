@@ -8,9 +8,9 @@ const navItem = ({ isActive }: { isActive: boolean }) =>
     isActive ? 'bg-acid' : 'bg-surface hover:bg-acid'
   }`
 
-// `maxW` should match the page's content container so the logo/nav align with
-// it (most pages are max-w-3xl; the narrative page is wider for its sidebar).
-export function Header({ maxW = 'max-w-3xl' }: { maxW?: string }) {
+// One app-wide frame width (max-w-5xl) so the header never jumps between pages.
+// Single-column pages keep a narrower content column left-aligned inside it.
+export function Header({ maxW = 'max-w-5xl' }: { maxW?: string }) {
   return (
     <>
       <div className="h-1.5 w-full border-b-2 border-ink bg-acid" />

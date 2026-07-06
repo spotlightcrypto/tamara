@@ -30,7 +30,8 @@ export function Profile({
   return (
     <div className="min-h-screen bg-concrete text-ink">
       <Header />
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-8">
+       <div className="max-w-3xl">
         <section className="border-2 border-ink bg-ink shadow-hard">
           <div className="flex items-center gap-4 p-4">
             <div className="grid h-14 w-14 shrink-0 place-items-center border-2 border-acid bg-acid font-display text-2xl font-bold uppercase text-ink">
@@ -76,6 +77,7 @@ export function Profile({
             items.map((n) => <NarrativeCard key={n.id} n={n} />)
           )}
         </div>
+       </div>
       </main>
     </div>
   )

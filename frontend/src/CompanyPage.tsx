@@ -39,7 +39,8 @@ export function CompanyPage() {
   return (
     <div className="min-h-screen bg-concrete text-ink">
       <Header />
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="mx-auto max-w-5xl px-4 py-8">
+       <div className="max-w-3xl">
         <Link
           to="/"
           className="inline-flex items-center gap-1.5 text-xs font-bold uppercase tracking-wide text-muted hover:text-ink"
@@ -84,6 +85,7 @@ export function CompanyPage() {
             </div>
           </>
         )}
+       </div>
       </main>
     </div>
   )
