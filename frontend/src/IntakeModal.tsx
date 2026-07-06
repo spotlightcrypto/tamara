@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowLeft, ArrowRight, Plus, RefreshCw, X } from 'lucide-react'
 import { api, ApiError } from './lib/api'
@@ -7,7 +7,7 @@ import type { Answer, IntakeState, Proposal, ProposalCompany, Question } from '.
 import { MarkdownEditor } from './MarkdownEditor'
 import { Label } from './ui'
 
-type Stage = 'processing' | 'questions' | 'proposal' | 'error'
+type Stage = 'input' | 'processing' | 'questions' | 'proposal' | 'error'
 type Phase = 'reading' | 'thinking' | 'synthesizing'
 
 const PROC_MESSAGES: Record<Phase, string[]> = {
@@ -29,9 +29,16 @@ const plainBtn =
 const autoField =
   'w-full border-2 border-ink bg-concrete px-3 py-2 font-mono outline-none focus:bg-surface focus:ring-2 focus:ring-acid [field-sizing:content]'
 
-export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClose: () => void }) {
+export function IntakeModal({
+  onClose,
+  initialKernel = '',
+}: {
+  onClose: () => void
+  initialKernel?: string
+}) {
   const navigate = useNavigate()
-  const [stage, setStage] = useState<Stage>('processing')
+  const [stage, setStage] = useState<Stage>('input')
+  const [kernel, setKernel] = useState(initialKernel)
   const [phase, setPhase] = useState<Phase>('reading')
   const [msgIdx, setMsgIdx] = useState(0)
   const [draftId, setDraftId] = useState<string | null>(null)
@@ -57,16 +64,6 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
     return () => clearInterval(t)
   }, [stage, phase])
 
-  // Kick off intake on mount — guarded so React StrictMode's double-invoke in
-  // dev doesn't start (and create a draft) twice.
-  const startedRef = useRef(false)
-  useEffect(() => {
-    if (startedRef.current) return
-    startedRef.current = true
-    void start()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
   function apply(s: IntakeState) {
     setDraftId(s.draft_id)
     setRound(s.round)
@@ -91,10 +88,11 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
   }
 
   async function start() {
+    const text = kernel.trim()
+    if (!text) return
     setPhase('reading')
     setStage('processing')
     setAnsweredEver(false)
-    const text = kernelText.trim()
     const isUrl = /^https?:\/\/\S+$/i.test(text)
     try {
       apply(
@@ -192,6 +190,26 @@ export function IntakeModal({ kernelText, onClose }: { kernelText: string; onClo
             <X size={18} strokeWidth={2.5} />
           </button>
         </div>
+
+        {/* INPUT — the kernel textarea (moved off the home page) */}
+        {stage === 'input' && (
+          <div className="p-4">
+            <textarea
+              value={kernel}
+              onChange={(e) => setKernel(e.target.value)}
+              rows={5}
+              autoFocus
+              placeholder={
+                'Paste a link, a tweet, a filing, a half-formed thought…\n' +
+                'Tamara will read it, ask a few sharp questions, and work it into a positioned take.'
+              }
+              className="w-full resize-y border-2 border-ink bg-concrete px-3 py-2.5 font-mono outline-none placeholder:text-muted focus:bg-surface focus:ring-2 focus:ring-acid"
+            />
+            <button onClick={() => void start()} disabled={!kernel.trim()} className={`mt-3 ${acidBtn}`}>
+              Generate <ArrowRight size={16} strokeWidth={2.5} />
+            </button>
+          </div>
+        )}
 
         {/* PROCESSING */}
         {stage === 'processing' && (
