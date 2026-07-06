@@ -5,7 +5,7 @@ import { api } from './lib/api'
 import { Header } from './Header'
 import { Markdown } from './Markdown'
 import { QuoteCard } from './QuoteCard'
-import { Label } from './ui'
+import { EmptyState, Label, Loading } from './ui'
 import { formatDateTime, timeAgo } from './lib/time'
 import type { Company, Narrative, Note, PricePerformance, Source } from './lib/types'
 
@@ -36,6 +36,9 @@ export function NarrativeDetail() {
         setCompanies(cos)
         setSources(srcs)
         setNotes(nts)
+        // Primary content is ready — stop the page-level loader now. Quotes load
+        // after and fill in on their own (QuoteCard shows its own placeholder).
+        setLoading(false)
         const since = n.created_at.slice(0, 10)
         const q = await Promise.all(
           cos.map(async (c) => {
@@ -49,7 +52,6 @@ export function NarrativeDetail() {
         setQuotes(Object.fromEntries(q))
       } catch {
         setNotFound(true)
-      } finally {
         setLoading(false)
       }
     })()
@@ -92,11 +94,15 @@ export function NarrativeDetail() {
           <ArrowLeft size={14} strokeWidth={2.5} /> Back
         </Link>
 
-        {loading && <p className="mt-6 text-sm uppercase tracking-wide text-muted">Loading…</p>}
+        {loading && (
+          <div className="mt-6">
+            <Loading />
+          </div>
+        )}
         {!loading && notFound && (
-          <p className="mt-6 border-2 border-dashed border-ink p-8 text-center text-sm uppercase tracking-wide text-muted">
-            Narrative not found.
-          </p>
+          <div className="mt-6">
+            <EmptyState>Narrative not found.</EmptyState>
+          </div>
         )}
 
         {n && (
@@ -104,7 +110,11 @@ export function NarrativeDetail() {
             {/* Dark masthead */}
             <div className="bg-ink px-4 py-3">
               <div className="flex items-start justify-between gap-3">
-                <h1 className="font-display text-xl font-bold tracking-tight text-surface sm:text-2xl">{n.title}</h1>
+                {/* Positioning tag sits on the headline line, after the title */}
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="font-display text-xl font-bold tracking-tight text-surface sm:text-2xl">{n.title}</h1>
+                  {n.positioning && <Label>{n.positioning}</Label>}
+                </div>
                 <div className="shrink-0 text-right font-mono text-[0.62rem] uppercase tracking-wide">
                   <div className={n.is_active ? 'text-acid' : 'text-surface/50'}>
                     {n.is_active ? '● Active' : '○ Inactive'}
@@ -118,15 +128,16 @@ export function NarrativeDetail() {
                   </button>
                 </div>
               </div>
+              {/* Byline: username first (no @), then tickers, then timestamps */}
               <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[0.62rem] uppercase tracking-wide">
-                {n.positioning && <span className="bg-acid px-1.5 py-0.5 font-bold text-ink">{n.positioning}</span>}
+                {n.author_username && <span className="text-surface">{n.author_username}</span>}
                 {companies.map((c) => (
                   <Link key={c.id} to={`/companies/${c.symbol.toLowerCase()}`} className="text-surface hover:text-acid">
                     {c.symbol}
                   </Link>
                 ))}
                 <span className="text-surface/50">
-                  created by @{n.author_username ?? '—'} · {formatDateTime(n.created_at)} · upd {timeAgo(n.updated_at)}
+                  created {formatDateTime(n.created_at)} · upd {timeAgo(n.updated_at)}
                 </span>
               </div>
             </div>

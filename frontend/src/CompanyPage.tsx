@@ -4,6 +4,7 @@ import { ArrowLeft } from 'lucide-react'
 import { api } from './lib/api'
 import { Header } from './Header'
 import { NarrativeCard } from './NarrativeCard'
+import { EmptyState, Loading } from './ui'
 import type { Company, NarrativeWithCompanies } from './lib/types'
 
 export function CompanyPage() {
@@ -46,14 +47,16 @@ export function CompanyPage() {
           <ArrowLeft size={14} strokeWidth={2.5} /> Back
         </Link>
 
-        {loading && <p className="mt-6 text-sm uppercase tracking-wide text-muted">Loading…</p>}
-        {!loading && notFound && (
-          <p className="mt-6 border-2 border-dashed border-ink p-8 text-center text-sm uppercase tracking-wide text-muted">
-            Company not found.
-          </p>
-        )}
-
-        {company && (
+        {/* One resolution point — no partial/flashing states while data loads. */}
+        {loading ? (
+          <div className="mt-6">
+            <Loading />
+          </div>
+        ) : notFound || !company ? (
+          <div className="mt-6">
+            <EmptyState>Company not found.</EmptyState>
+          </div>
+        ) : (
           <>
             <div className="mt-4 border-2 border-ink bg-ink px-4 py-4 shadow-hard">
               <div className="font-mono text-sm font-bold uppercase tracking-widest text-acid">
@@ -73,14 +76,11 @@ export function CompanyPage() {
               Narratives
             </h2>
             <div className="mt-4 space-y-4">
-              {narratives.length === 0 && (
-                <p className="border-2 border-dashed border-ink p-8 text-center text-sm uppercase tracking-wide text-muted">
-                  No narratives involve this company yet.
-                </p>
+              {narratives.length === 0 ? (
+                <EmptyState>No narratives involve this company yet.</EmptyState>
+              ) : (
+                narratives.map((n) => <NarrativeCard key={n.id} n={n} />)
               )}
-              {narratives.map((n) => (
-                <NarrativeCard key={n.id} n={n} />
-              ))}
             </div>
           </>
         )}

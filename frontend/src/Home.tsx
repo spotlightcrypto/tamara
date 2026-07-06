@@ -4,6 +4,7 @@ import { api } from './lib/api'
 import { Header } from './Header'
 import { IntakeModal } from './IntakeModal'
 import { NarrativeCard } from './NarrativeCard'
+import { EmptyState, Loading } from './ui'
 import type { NarrativeWithCompanies } from './lib/types'
 
 export function Home() {
@@ -72,15 +73,13 @@ export function Home() {
 
         <h2 className="mt-10 font-display text-xl font-bold uppercase tracking-tight">Recent</h2>
         <div className="mt-4 space-y-4">
-          {loading && <p className="text-sm uppercase tracking-wide text-muted">Loading…</p>}
-          {!loading && items.length === 0 && (
-            <p className="border-2 border-dashed border-ink p-8 text-center text-sm uppercase tracking-wide text-muted">
-              Nothing yet — drop a kernel above.
-            </p>
+          {loading ? (
+            <Loading />
+          ) : items.length === 0 ? (
+            <EmptyState>Nothing yet — drop a kernel above.</EmptyState>
+          ) : (
+            items.map((n) => <NarrativeCard key={n.id} n={n} />)
           )}
-          {items.map((n) => (
-            <NarrativeCard key={n.id} n={n} />
-          ))}
         </div>
       </main>
 

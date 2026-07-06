@@ -30,9 +30,8 @@ export function NarrativeCard({ n }: { n: NarrativeWithCompanies }) {
         {n.thesis && (
           <p className="mt-1.5 line-clamp-3 text-sm leading-relaxed text-muted">{n.thesis}</p>
         )}
-        {(n.positioning || n.companies.length > 0) && (
+        {n.companies.length > 0 && (
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            {n.positioning && <Label>{n.positioning}</Label>}
             {n.companies.map((c) => (
               // Each ticker navigates to that company's page.
               <Link
@@ -46,10 +45,14 @@ export function NarrativeCard({ n }: { n: NarrativeWithCompanies }) {
           </div>
         )}
       </div>
-      <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-t-2 border-ink px-4 py-2 font-mono text-[0.68rem] uppercase tracking-wide text-muted">
-        {n.author_username && <span>◆ @{n.author_username}</span>}
-        <span>created {formatDate(n.created_at)}</span>
-        <span>updated {timeAgo(n.updated_at)}</span>
+      {/* Footer: username first (no @), positioning tag last on the line */}
+      <div className="flex items-center justify-between gap-3 border-t-2 border-ink px-4 py-2 font-mono text-[0.68rem] uppercase tracking-wide text-muted">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5">
+          {n.author_username && <span className="text-ink">{n.author_username}</span>}
+          <span>created {formatDate(n.created_at)}</span>
+          <span>updated {timeAgo(n.updated_at)}</span>
+        </div>
+        {n.positioning && <Label>{n.positioning}</Label>}
       </div>
     </article>
   )

@@ -3,6 +3,7 @@ import { api } from './lib/api'
 import { Header } from './Header'
 import { NarrativeCard } from './NarrativeCard'
 import { UsernameForm } from './UsernameForm'
+import { EmptyState, Loading } from './ui'
 import type { Me, NarrativeWithCompanies } from './lib/types'
 
 export function Profile({
@@ -67,15 +68,13 @@ export function Profile({
 
         <h2 className="mt-8 font-display text-xl font-bold uppercase tracking-tight">Your narratives</h2>
         <div className="mt-4 space-y-4">
-          {loading && <p className="text-sm uppercase tracking-wide text-muted">Loading…</p>}
-          {!loading && items.length === 0 && (
-            <p className="border-2 border-dashed border-ink p-8 text-center text-sm uppercase tracking-wide text-muted">
-              No narratives yet.
-            </p>
+          {loading ? (
+            <Loading />
+          ) : items.length === 0 ? (
+            <EmptyState>No narratives yet.</EmptyState>
+          ) : (
+            items.map((n) => <NarrativeCard key={n.id} n={n} />)
           )}
-          {items.map((n) => (
-            <NarrativeCard key={n.id} n={n} />
-          ))}
         </div>
       </main>
     </div>
