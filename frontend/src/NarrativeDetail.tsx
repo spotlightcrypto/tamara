@@ -43,7 +43,7 @@ export function NarrativeDetail() {
         const q = await Promise.all(
           cos.map(async (c) => {
             try {
-              return [c.id, await api.get<PricePerformance>(`/prices/${c.ticker}/performance?since=${since}`)] as const
+              return [c.id, await api.get<PricePerformance>(`/prices/${c.ticker}/${c.mic}/performance?since=${since}`)] as const
             } catch {
               return [c.id, { ticker: c.ticker, as_of: null, performance: {} }] as const
             }
@@ -132,7 +132,7 @@ export function NarrativeDetail() {
               <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[0.62rem] uppercase tracking-wide">
                 {n.author_username && <span className="text-surface">{n.author_username}</span>}
                 {companies.map((c) => (
-                  <Link key={c.id} to={`/companies/${c.symbol.toLowerCase()}`} className="text-surface hover:text-acid">
+                  <Link key={c.id} to={`/companies/${c.slug}`} className="text-surface hover:text-acid">
                     {c.symbol}
                   </Link>
                 ))}

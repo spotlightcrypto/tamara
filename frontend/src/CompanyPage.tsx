@@ -8,7 +8,8 @@ import { EmptyState, Loading } from './ui'
 import type { Company, NarrativeWithCompanies } from './lib/types'
 
 export function CompanyPage() {
-  // The route slug is the exchange-qualified symbol, e.g. "crwv:nasdaq".
+  // The route slug is the canonical ticker:mic, e.g. "crwv:xnas". (Older
+  // ticker:exchange-name links still resolve — the backend maps either to a MIC.)
   const { symbol } = useParams<{ symbol: string }>()
   const [company, setCompany] = useState<Company | null>(null)
   const [narratives, setNarratives] = useState<NarrativeWithCompanies[]>([])
@@ -17,15 +18,15 @@ export function CompanyPage() {
 
   useEffect(() => {
     ;(async () => {
-      const [ticker, exchange] = (symbol ?? '').split(':')
-      if (!ticker || !exchange) {
+      const [ticker, mic] = (symbol ?? '').split(':')
+      if (!ticker || !mic) {
         setNotFound(true)
         setLoading(false)
         return
       }
       try {
-        // Resolve the company by symbol, then load its narratives by id.
-        const c = await api.get<Company>(`/companies/by-symbol/${ticker}/${exchange}`)
+        // Resolve the company by its slug parts, then load its narratives by id.
+        const c = await api.get<Company>(`/companies/by-symbol/${ticker}/${mic}`)
         setCompany(c)
         setNarratives(await api.get<NarrativeWithCompanies[]>(`/companies/${c.id}/narratives`))
       } catch {

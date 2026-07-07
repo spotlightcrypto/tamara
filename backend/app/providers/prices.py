@@ -35,16 +35,15 @@ class PricesError(Exception):
 # below — the bulk, scalable production path — then confirm the full integration
 # (backfill + daily cron) against real Polygon data. Until then we prototype here.
 
-def daily_history(ticker: str, rng: str = "1y") -> list[tuple[date, float]]:
-    """Daily (date, adjusted-close) for ONE ticker from Yahoo's chart endpoint.
-    Empty list if the ticker is unknown or returns no data.
+def daily_history(yahoo_symbol: str, rng: str = "1y") -> list[tuple[date, float]]:
+    """Daily (date, adjusted-close) for ONE Yahoo symbol. Empty list if the symbol
+    is unknown or returns no data.
 
-    `ticker` is the CANONICAL symbol (matches companies.ticker and Polygon's
-    format, e.g. "BRK.B"). Yahoo uses a hyphen for class shares, so we translate
-    only for the request URL — the caller still stores under the canonical
-    symbol, keeping daily_bars keyed identically to the future Polygon path.
+    `yahoo_symbol` is the FINAL Yahoo symbol (e.g. "AAPL", "BRK-B", "7203.T") —
+    the caller builds it from (ticker, MIC) via exchanges.yahoo_symbol(), which is
+    also the key daily_bars is stored under. This keeps international listings
+    unambiguous (7203.T vs 7203.HK) and keyed identically on read and write.
     """
-    yahoo_symbol = ticker.replace(".", "-")
     url = f"{_YAHOO_CHART}/{yahoo_symbol}"
     params = {"range": rng, "interval": "1d"}
     try:
@@ -78,6 +77,11 @@ def grouped_daily(day: date) -> dict[str, float]:
 
     An empty dict means a non-trading day (weekend/holiday) or data not yet
     published. Tickers are bare US symbols (e.g. "AAPL"). Closes are adjusted.
+
+    NOTE(prices): to align keys with the Yahoo prototype (and exchanges.yahoo_symbol),
+    the production ingest must normalize class-share tickers dot->hyphen ("BRK.B" ->
+    "BRK-B") before upserting, since US MICs have an empty Yahoo suffix and
+    yahoo_symbol("BRK.B", "XNYS") == "BRK-B".
     """
     if not settings.polygon_api_key:
         raise PricesError("POLYGON_API_KEY is not configured")

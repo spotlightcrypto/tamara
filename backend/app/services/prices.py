@@ -15,6 +15,7 @@ from datetime import date, timedelta
 
 from supabase import Client
 
+from app import exchanges
 from app.models import PricePerformance
 from app.providers import prices as prices_provider
 
@@ -48,14 +49,19 @@ def ingest_day(db: Client, day: date) -> int:
     return len(rows)
 
 
-def ingest_ticker(db: Client, ticker: str, rng: str = "2y") -> int:
-    """PROTOTYPE (keyless): cache one ticker's daily history from Yahoo. Returns
-    the number of bars written. See providers/prices.py for the Polygon TODO."""
-    bars = prices_provider.daily_history(ticker, rng)
+def ingest_ticker(db: Client, ticker: str, mic: str, rng: str = "2y") -> int:
+    """PROTOTYPE (keyless): cache one listing's daily history from Yahoo. Keyed by
+    the registry's Yahoo symbol (US -> bare ticker, intl -> suffixed). Returns the
+    number of bars written, or 0 if the exchange has no free price source (tier 3).
+    See providers/prices.py for the Polygon TODO."""
+    symbol = exchanges.yahoo_symbol(ticker, mic)
+    if symbol is None:
+        return 0  # tier-3 / uncovered exchange — narrative-only, no price
+    bars = prices_provider.daily_history(symbol, rng)
     if not bars:
         return 0
     rows = [
-        {"ticker": ticker, "date": bar_date.isoformat(), "close": close}
+        {"ticker": symbol, "date": bar_date.isoformat(), "close": close}
         for bar_date, close in bars
     ]
     for i in range(0, len(rows), _UPSERT_CHUNK):
@@ -66,22 +72,26 @@ def ingest_ticker(db: Client, ticker: str, rng: str = "2y") -> int:
 
 
 def ingest_watchlist(db: Client, rng: str = "2y") -> dict:
-    """PROTOTYPE: cache history for every ticker that appears in a narrative
-    (the companies table), one Yahoo call per ticker. Fine for our handful of
-    tickers; the production path bulk-ingests the whole market via grouped_daily."""
-    companies = db.table("companies").select("ticker").execute().data
-    tickers = sorted({c["ticker"] for c in companies})
+    """PROTOTYPE: cache history for every listing that appears in a narrative
+    (the companies table), one Yahoo call per listing. Tier-3/uncovered exchanges
+    are skipped (no free price source). Fine for our handful of tickers; the
+    production path bulk-ingests the whole market via grouped_daily."""
+    companies = db.table("companies").select("ticker,mic").execute().data
+    listings = sorted({(c["ticker"], c["mic"]) for c in companies})
     ok = 0
     total = 0
-    for ticker in tickers:
+    skipped = 0
+    for ticker, mic in listings:
         try:
-            written = ingest_ticker(db, ticker, rng)
+            written = ingest_ticker(db, ticker, mic, rng)
         except Exception:
             continue  # skip a bad ticker rather than fail the whole run
         if written:
             ok += 1
             total += written
-    return {"tickers": len(tickers), "ingested": ok, "bars": total}
+        elif exchanges.yahoo_symbol(ticker, mic) is None:
+            skipped += 1  # uncovered by design, not an error
+    return {"listings": len(listings), "ingested": ok, "bars": total, "uncovered": skipped}
 
 
 def backfill(db: Client, days: int = 365, throttle_seconds: float = 0.0) -> dict:
@@ -108,15 +118,24 @@ def _pct(latest: float, ref: float) -> float:
     return round((latest - ref) / ref * 100, 2)
 
 
-def performance(db: Client, ticker: str, since: date | None = None) -> PricePerformance:
-    """Compute a ticker's percentage performance over the daily windows from the
+def performance(
+    db: Client, ticker: str, mic: str, since: date | None = None
+) -> PricePerformance:
+    """Compute a listing's percentage performance over the daily windows from the
     cached bars. Windows without enough history are omitted. If `since` is given
     (e.g. a narrative's creation date), also return the close on/before it and
-    the % change since."""
+    the % change since.
+
+    Bars are keyed by the registry's Yahoo symbol (see ingest_ticker). A tier-3 /
+    uncovered exchange has no price source, so we return an empty performance —
+    the UI renders it as "not yet covered" rather than an error."""
+    symbol = exchanges.yahoo_symbol(ticker, mic)
+    if symbol is None:
+        return PricePerformance(ticker=ticker, as_of=None, performance={})
     response = (
         db.table("daily_bars")
         .select("date,close")
-        .eq("ticker", ticker)
+        .eq("ticker", symbol)
         .order("date", desc=True)
         .limit(400)  # ~1.5 trading years — enough for the 1Y window
         .execute()

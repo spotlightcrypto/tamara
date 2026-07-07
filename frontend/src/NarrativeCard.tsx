@@ -36,7 +36,7 @@ export function NarrativeCard({ n }: { n: NarrativeWithCompanies }) {
               // Each ticker navigates to that company's page.
               <Link
                 key={c.id}
-                to={`/companies/${c.symbol.toLowerCase()}`}
+                to={`/companies/${c.slug}`}
                 className="border-2 border-ink bg-concrete px-2 py-0.5 font-mono text-xs font-bold transition-all hover:bg-acid"
               >
                 {c.symbol}

@@ -54,9 +54,10 @@ async def detach_company(
 async def get_company_by_symbol(
     ticker: str, exchange: str, db: UserDbDep
 ) -> Company:
-    """Fetch a company by its exchange-qualified symbol (e.g. CRWV / NASDAQ) —
-    backs the readable /companies/<ticker>:<exchange> route."""
-    company = service.get_by_symbol(db, ticker, exchange)
+    """Fetch a company by its slug parts (e.g. CRWV / XNAS) — backs the readable
+    /companies/<ticker>:<mic> route. The `exchange` segment may be a MIC, a
+    friendly name, or an alias; the service resolves it to a canonical MIC."""
+    company = service.get_by_slug(db, ticker, exchange)
     if company is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "company not found")
     return company

@@ -17,15 +17,17 @@ from app.services import prices as service
 router = APIRouter(tags=["prices"])
 
 
-@router.get("/prices/{ticker}/performance")
+@router.get("/prices/{ticker}/{mic}/performance")
 async def get_performance(
     ticker: str,
+    mic: str,
     db: UserDbDep,
     since: date | None = Query(default=None, description="Reference date (YYYY-MM-DD), e.g. narrative creation"),
 ) -> PricePerformance:
-    """A ticker's percentage performance over the daily windows (1D/1W/1M/3M/6M/1Y),
-    plus the price on/before `since` if provided."""
-    return service.performance(db, ticker.strip().upper(), since=since)
+    """A listing's percentage performance over the daily windows (1D/1W/1M/3M/6M/1Y),
+    plus the price on/before `since` if provided. Keyed by (ticker, MIC); an
+    uncovered exchange returns an empty performance rather than an error."""
+    return service.performance(db, ticker.strip().upper(), mic.strip().upper(), since=since)
 
 
 @router.post("/prices/ingest")

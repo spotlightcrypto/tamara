@@ -10,6 +10,7 @@ from uuid import UUID
 
 from supabase import Client
 
+from app import exchanges
 from app.models import Company, CompanyAttach
 from app.services import narratives as narratives_service
 
@@ -29,14 +30,15 @@ def _parse_symbol(raw_ticker: str, raw_exchange: str | None) -> tuple[str, str |
 
 
 def _get_or_create_company(
-    db: Client, ticker: str, exchange: str, name: str | None
+    db: Client, ticker: str, mic: str, meta: dict, name: str | None
 ) -> dict:
-    """Find the company by its (ticker, exchange) identity, or create it."""
+    """Find the company by its (ticker, MIC) identity, or create it. `meta` is the
+    exchange-registry metadata (friendly name, currency, country, tier)."""
     existing = (
         db.table("companies")
         .select("*")
         .eq("ticker", ticker)
-        .eq("exchange", exchange)
+        .eq("mic", mic)
         .limit(1)
         .execute()
     )
@@ -44,7 +46,17 @@ def _get_or_create_company(
         return existing.data[0]
     created = (
         db.table("companies")
-        .insert({"ticker": ticker, "exchange": exchange, "name": name or ticker})
+        .insert(
+            {
+                "ticker": ticker,
+                "mic": mic,
+                "exchange": meta["name"],
+                "currency": meta["currency"],
+                "country": meta["country"],
+                "tier": meta["tier"],
+                "name": name or ticker,
+            }
+        )
         .execute()
     )
     return created.data[0]
@@ -58,7 +70,8 @@ def attach(db: Client, narrative_id: UUID, data: CompanyAttach) -> Company | Non
 
     ticker, exchange = _parse_symbol(data.ticker, data.exchange)
     assert exchange is not None  # guaranteed by CompanyAttach's validator
-    company = _get_or_create_company(db, ticker, exchange, data.name)
+    mic, meta = exchanges.resolve(exchange)  # friendly/alias/MIC -> canonical MIC
+    company = _get_or_create_company(db, ticker, mic, meta, data.name)
 
     already = (
         db.table("narrative_companies")
@@ -113,14 +126,17 @@ def get(db: Client, company_id: UUID) -> Company | None:
     return Company.model_validate(response.data[0])
 
 
-def get_by_symbol(db: Client, ticker: str, exchange: str) -> Company | None:
-    """Fetch a company by its exchange-qualified symbol (e.g. CRWV + NASDAQ),
-    matching the unique (ticker, exchange) identity. Case-insensitive on input."""
+def get_by_slug(db: Client, ticker: str, exchange_or_mic: str) -> Company | None:
+    """Fetch a company by its slug parts (ticker + the exchange segment). The
+    segment may be a MIC ("xnas"), a friendly name ("nasdaq"), or an alias — we
+    resolve it to a canonical MIC first, so both new (ticker:mic) and older
+    (ticker:exchange-name) URLs resolve. Case-insensitive on input."""
+    mic, _ = exchanges.resolve(exchange_or_mic)
     response = (
         db.table("companies")
         .select("*")
         .eq("ticker", ticker.strip().upper())
-        .eq("exchange", exchange.strip().upper())
+        .eq("mic", mic)
         .limit(1)
         .execute()
     )

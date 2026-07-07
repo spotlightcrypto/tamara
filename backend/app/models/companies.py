@@ -1,9 +1,15 @@
 """Company API models.
 
-Companies are a shared/global cache (not per-user). A company's identity is its
-exchange-qualified ticker — the same symbol can trade on different exchanges, so
-"CRWV" alone is ambiguous; "CRWV:NASDAQ" is not. We store `ticker` and `exchange`
-separately and expose a derived `symbol` for display.
+Companies are a shared/global cache (not per-user). A company's identity is
+(ticker, MIC) — the same ticker trades on different exchanges, so "CRWV" alone is
+ambiguous and even "CRWV:NASDAQ" relies on a friendly name that varies by source.
+The MIC (ISO 10383, e.g. XNAS) is the canonical, international key. We store the
+MIC alongside the friendly `exchange` name and expose:
+  - `symbol`: friendly display, "CRWV:NASDAQ"
+  - `slug`:   canonical URL identity, "crwv:xnas" (ticker:mic, lowercased)
+
+`currency`/`country`/`tier` come from the exchange registry (see app.exchanges);
+`tier` drives price coverage (1 US, 2 major-developed via Yahoo, 3 narrative-only).
 
 Bare-bones for now: identity + placeholders for profile/fundamentals that a later
 hydrate step will fill.
@@ -45,7 +51,11 @@ class Company(BaseModel):
 
     id: UUID
     ticker: str
-    exchange: str
+    exchange: str  # friendly display name ("NASDAQ")
+    mic: str  # ISO 10383 canonical code ("XNAS") — the identity key
+    currency: str | None
+    country: str | None
+    tier: int | None  # 1 US, 2 major-developed (priced via Yahoo), 3 narrative-only
     name: str
     sector: str | None
     profile: dict[str, Any] | None
@@ -57,5 +67,12 @@ class Company(BaseModel):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def symbol(self) -> str:
-        """Exchange-qualified display symbol, e.g. "CRWV:NASDAQ"."""
+        """Friendly exchange-qualified symbol for display, e.g. "CRWV:NASDAQ"."""
         return f"{self.ticker}:{self.exchange}"
+
+    @computed_field  # type: ignore[prop-decorator]
+    @property
+    def slug(self) -> str:
+        """Canonical URL identity: ticker:mic, lowercased, e.g. "crwv:xnas".
+        Unambiguous across exchanges and stable regardless of naming source."""
+        return f"{self.ticker}:{self.mic}".lower()

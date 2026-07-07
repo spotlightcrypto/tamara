@@ -60,8 +60,13 @@ export interface Source {
 export interface Company {
   id: string
   ticker: string
-  exchange: string
-  symbol: string // derived "TICKER:EXCHANGE"
+  exchange: string // friendly display name, "NASDAQ"
+  mic: string // ISO 10383 canonical code, "XNAS" — the identity key
+  currency: string | null
+  country: string | null
+  tier: number | null // 1 US, 2 major-developed (priced), 3 narrative-only (no price)
+  symbol: string // friendly derived "TICKER:EXCHANGE"
+  slug: string // canonical URL identity "ticker:mic" (lowercased)
   name: string
   sector: string | null
   profile: Record<string, unknown> | null

@@ -15,11 +15,42 @@ def test_attach_qualified_ticker_normalizes(client, make_narrative):
     r = client.post(f"/narratives/{n['id']}/companies", json={"ticker": "crwv:nasdaq"})
     assert r.status_code == 201
     company = r.json()
-    assert company["ticker"] == "CRWV"        # upper-cased
-    assert company["exchange"] == "NASDAQ"
-    assert company["symbol"] == "CRWV:NASDAQ"  # derived field
-    assert company["name"] == "CRWV"           # defaults to ticker (no hydration)
+    assert company["ticker"] == "CRWV"          # upper-cased
+    assert company["exchange"] == "NASDAQ"      # friendly display name
+    assert company["mic"] == "XNAS"             # canonical identity (resolved)
+    assert company["currency"] == "USD"
+    assert company["country"] == "US"
+    assert company["tier"] == 1
+    assert company["symbol"] == "CRWV:NASDAQ"   # friendly derived field
+    assert company["slug"] == "crwv:xnas"       # canonical URL slug (ticker:mic)
+    assert company["name"] == "CRWV"            # defaults to ticker (no hydration)
     assert company["last_hydrated_at"] is None
+
+
+def test_attach_international_resolves_tier_and_currency(client, make_narrative):
+    n = make_narrative()
+    # A London listing: friendly "LSE" resolves to MIC XLON, tier 2, GBP.
+    company = client.post(
+        f"/narratives/{n['id']}/companies", json={"ticker": "BARC:LSE", "name": "Barclays"}
+    ).json()
+    assert company["mic"] == "XLON"
+    assert company["exchange"] == "London Stock Exchange"
+    assert company["currency"] == "GBP"
+    assert company["country"] == "GB"
+    assert company["tier"] == 2
+    assert company["slug"] == "barc:xlon"
+
+
+def test_attach_unknown_exchange_is_tier3_passthrough(client, make_narrative):
+    n = make_narrative()
+    # An exchange we don't know: still creatable (narrative-only), tier 3, no price.
+    company = client.post(
+        f"/narratives/{n['id']}/companies", json={"ticker": "ZZZCO", "exchange": "ZZQQ"}
+    ).json()
+    assert company["mic"] == "ZZQQ"      # passthrough key
+    assert company["tier"] == 3
+    assert company["currency"] is None
+    assert company["slug"] == "zzzco:zzqq"
 
 
 def test_attach_with_separate_exchange_field(client, make_narrative):
@@ -104,10 +135,12 @@ def test_get_missing_company_returns_404(client):
 def test_get_company_by_symbol(client, make_narrative):
     n = make_narrative()
     client.post(f"/narratives/{n['id']}/companies", json={"ticker": "AMD:NASDAQ"})
-    # case-insensitive lookup by the exchange-qualified symbol (the readable route)
-    fetched = client.get("/companies/by-symbol/amd/nasdaq")
-    assert fetched.status_code == 200
-    assert fetched.json()["symbol"] == "AMD:NASDAQ"
+    # The readable route resolves the exchange segment to a MIC, so both the new
+    # slug (amd:xnas) and the older friendly form (amd:nasdaq) fetch the same row.
+    for seg in ("xnas", "nasdaq"):
+        fetched = client.get(f"/companies/by-symbol/amd/{seg}")
+        assert fetched.status_code == 200
+        assert fetched.json()["slug"] == "amd:xnas"
     assert client.get("/companies/by-symbol/NOPE/NASDAQ").status_code == 404
 
 
