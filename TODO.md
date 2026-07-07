@@ -60,6 +60,11 @@ spend decision. Each has a working free/prototype path today.
   until we have a real dataset — revisit once there's usage to learn from.
 - 🟥 **Dynamic / living narratives.** The 10 brainstormed ideas for making
   published narratives update over time — none built yet.
+- 🟥 **Signal-metrics building block.** Per-company "alternative" metrics (not the
+  front-page P/E stuff) — quality/capital-allocation/forensic from free SEC XBRL,
+  plus short/options/social tiers. Full research + MVP starter set + per-company
+  selection engine in `spec/09-signal-metrics.md`. P1 (free SEC EDGAR) has zero
+  data cost; options/consensus are the paid tiers to log alongside prices.
 - 🟥 **Anti-slop friction.** Mechanisms that add signal-producing friction so
   ease-of-use doesn't converge on generic output. Design + build.
 - 🟥 **Serious design / branding pass.** The acid-brutalist theme is a placeholder.
