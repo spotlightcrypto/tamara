@@ -35,6 +35,7 @@ from app.models.items import (
 from app.models.narratives import (
     Narrative,
     NarrativeCreate,
+    NarrativePreview,
     NarrativeSummary,
     NarrativeUpdate,
 )
@@ -72,6 +73,7 @@ __all__ = [
     "QuestionOption",
     "Narrative",
     "NarrativeCreate",
+    "NarrativePreview",
     "NarrativeSummary",
     "NarrativeUpdate",
     "Me",

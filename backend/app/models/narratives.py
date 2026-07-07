@@ -89,3 +89,19 @@ class NarrativeSummary(Narrative):
     """
 
     companies: list[Company] = Field(default_factory=list)
+
+
+class NarrativePreview(BaseModel):
+    """The public teaser of a narrative for logged-OUT visitors: title + a short
+    excerpt only. The full body, companies, sources, and notes require signing in.
+    This is a deliberately minimal shape — we never send more than the teaser to
+    an anonymous caller, even though RLS would let them read the whole public row.
+    """
+
+    id: UUID
+    title: str
+    preview: str  # first ~100 chars of the narrative, lightly de-marked
+    truncated: bool  # was there more content beyond the preview?
+    positioning: str | None
+    author_username: str | None = None
+    created_at: datetime

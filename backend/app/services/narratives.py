@@ -10,6 +10,7 @@ Every function takes a `db` that is already authenticated as the calling user
 clearly.
 """
 
+import re
 from uuid import UUID
 
 from supabase import Client
@@ -18,9 +19,13 @@ from app.models import (
     Company,
     Narrative,
     NarrativeCreate,
+    NarrativePreview,
     NarrativeSummary,
     NarrativeUpdate,
 )
+
+# How many characters of a narrative a logged-OUT visitor may see.
+_PREVIEW_CHARS = 100
 
 # PostgREST embedded-resource select: pull each narrative together with its
 # attached companies in ONE query. `narrative_companies(companies(*))` walks the
@@ -167,6 +172,44 @@ def get(db: Client, narrative_id: UUID) -> Narrative | None:
     if not response.data:
         return None
     return _with_author(db, Narrative, response.data[0])
+
+
+def _make_preview(body_md: str, thesis: str) -> tuple[str, bool]:
+    """Turn a narrative's content into a short plain-ish teaser + a "there's more"
+    flag. Prefers the body; falls back to the thesis. Strips the most common
+    markdown marks and collapses whitespace so the excerpt reads cleanly."""
+    raw = (body_md or "").strip() or (thesis or "").strip()
+    plain = re.sub(r"[#*_`>\[\]]+", "", raw)
+    plain = re.sub(r"\s+", " ", plain).strip()
+    return plain[:_PREVIEW_CHARS], len(plain) > _PREVIEW_CHARS
+
+
+def preview(db: Client, narrative_id: UUID) -> NarrativePreview | None:
+    """The public teaser for a narrative: title + first ~100 chars only. Meant to
+    be called with an ANON client — RLS then returns the row only if it's public,
+    so private/missing narratives yield None (-> 404). We select the content just
+    to build the excerpt and never return more than the teaser."""
+    response = (
+        db.table("narratives")
+        .select("id,title,thesis,body_md,positioning,created_at,user_id")
+        .eq("id", str(narrative_id))
+        .limit(1)
+        .execute()
+    )
+    if not response.data:
+        return None
+    row = response.data[0]
+    text, truncated = _make_preview(row.get("body_md", ""), row.get("thesis", ""))
+    author = _author_map(db, {row.get("user_id")}).get(str(row.get("user_id")))
+    return NarrativePreview(
+        id=row["id"],
+        title=row["title"],
+        preview=text,
+        truncated=truncated,
+        positioning=row.get("positioning"),
+        author_username=author,
+        created_at=row["created_at"],
+    )
 
 
 def get_for_user(db: Client, user_id: UUID, narrative_id: UUID) -> Narrative | None:

@@ -19,6 +19,7 @@ from app.routers.narratives import router as narratives_router
 from app.routers.notes import router as notes_router
 from app.routers.prices import router as prices_router
 from app.routers.profiles import router as profiles_router
+from app.routers.public import router as public_router
 from app.routers.search import router as search_router
 from app.routers.sources import router as sources_router
 
@@ -49,6 +50,7 @@ app.include_router(prices_router)
 app.include_router(profiles_router)
 app.include_router(intake_router)
 app.include_router(search_router)
+app.include_router(public_router)
 
 
 # A "route": when an HTTP GET request hits the path "/", FastAPI calls this

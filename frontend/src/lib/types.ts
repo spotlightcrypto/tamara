@@ -13,6 +13,17 @@ export interface Narrative {
   updated_at: string
 }
 
+// The logged-out teaser of a public narrative: title + a short excerpt only.
+export interface NarrativePreview {
+  id: string
+  title: string
+  preview: string
+  truncated: boolean
+  positioning: string | null
+  author_username: string | null
+  created_at: string
+}
+
 // The caller's own identity (the only place an email is returned, to its owner).
 export interface Me {
   user_id: string

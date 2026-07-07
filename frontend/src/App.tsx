@@ -9,6 +9,7 @@ import { UsernameSetup } from './UsernameSetup'
 import { Home } from './Home'
 import { Profile } from './Profile'
 import { NarrativeDetail } from './NarrativeDetail'
+import { NarrativePreviewPage } from './NarrativePreviewPage'
 import { CompanyPage } from './CompanyPage'
 
 // Derive a valid suggested username from an email local-part.
@@ -49,7 +50,18 @@ function App() {
   }, [session?.user?.id])
 
   if (!ready) return null
-  if (!session) return <Login />
+  // Logged-out visitors: only the public narrative teaser is reachable; anything
+  // else falls through to the login screen.
+  if (!session) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/narratives/:id" element={<NarrativePreviewPage />} />
+          <Route path="*" element={<Login />} />
+        </Routes>
+      </BrowserRouter>
+    )
+  }
   if (me === undefined) return null // profile loading
 
   if (me === 'error') {
