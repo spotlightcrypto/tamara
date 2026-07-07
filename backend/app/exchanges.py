@@ -92,6 +92,42 @@ def meta(mic: str) -> dict:
     return EXCHANGES.get(mic, {"name": mic, "yahoo": None, "currency": None, "country": None, "tier": 3})
 
 
+# Reverse of the `yahoo` suffix: "L" -> XLON, "T" -> XTKS, … Built from EXCHANGES
+# so it stays in sync. US MICs share the empty suffix and are resolved by exchange
+# code instead (see from_yahoo).
+_YAHOO_SUFFIX_TO_MIC: dict[str, str] = {
+    m["yahoo"]: mic for mic, m in EXCHANGES.items() if m["yahoo"]
+}
+
+
+def from_yahoo(symbol: str, exchange_code: str | None = None) -> tuple[str, str, dict]:
+    """Reverse-resolve a Yahoo search hit into our (ticker, MIC, metadata).
+
+    Yahoo hands us a symbol ("AAPL", "BARC.L", "7203.T", "BRK-B") and an exchange
+    code ("NMS", "LSE", "JPX"). We prefer the symbol *suffix* (unambiguous for
+    non-US listings), then fall back to the exchange code via ALIASES, then to a
+    tier-3 passthrough. Class-share hyphens map back to our canonical dot
+    (BRK-B -> BRK.B)."""
+    sym = (symbol or "").strip().upper()
+
+    # 1) Suffixed symbol -> MIC by suffix (most reliable for international).
+    if "." in sym:
+        base, _, suffix = sym.rpartition(".")
+        mic = _YAHOO_SUFFIX_TO_MIC.get(suffix)
+        if mic:
+            return base.replace("-", "."), mic, EXCHANGES[mic]
+
+    # 2) No known suffix -> resolve by the Yahoo exchange code (US: NMS/NYQ/…).
+    if exchange_code:
+        mic, meta = resolve(exchange_code)
+        if meta["tier"] != 3:  # recognized
+            return sym.replace("-", "."), mic, meta
+
+    # 3) Unknown -> tier-3 passthrough keyed by the exchange code (narrative-only).
+    mic, meta = resolve(exchange_code or "")
+    return sym.replace("-", "."), mic, meta
+
+
 def yahoo_symbol(ticker: str, mic: str) -> str | None:
     """Translate (ticker, MIC) into Yahoo's symbol, or None if we have no free
     price source for that exchange (tier 3 / unknown). Yahoo uses '-' for the

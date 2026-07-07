@@ -82,6 +82,26 @@ export interface NarrativeWithCompanies extends Narrative {
   companies: Company[]
 }
 
+// A listing found via the external symbol resolver but not (yet) in our DB — no
+// `id`. Enough to render a chip and start the first narrative for it.
+export interface ResolvedListing {
+  ticker: string
+  mic: string
+  exchange: string
+  name: string
+  currency: string | null
+  tier: number | null
+  has_price: boolean
+  symbol: string // derived "TICKER:EXCHANGE"
+  slug: string // canonical "ticker:mic" (lowercased)
+}
+
+// Combined local search: the caller's narratives + globally-known companies.
+export interface SearchResults {
+  narratives: NarrativeWithCompanies[]
+  companies: Company[]
+}
+
 // --- Guided intake (kernel -> questionnaire -> proposal) ---
 
 export interface QuestionOption {

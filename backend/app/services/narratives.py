@@ -92,6 +92,26 @@ def list_for_user(db: Client, user_id: UUID) -> list[NarrativeSummary]:
     return _rows_to_summaries(db, response.data)
 
 
+def search(db: Client, q: str, limit: int = 10) -> list[NarrativeSummary]:
+    """Search the caller's narratives by title/thesis (case-insensitive substring),
+    newest first. RLS scopes this to the caller's own rows. Empty query -> []."""
+    term = q.strip()
+    if not term:
+        return []
+    # PostgREST `or` with ilike; `*` is the wildcard. Commas/parens in the term
+    # would break the filter grammar, so strip them defensively.
+    safe = term.replace(",", " ").replace("(", " ").replace(")", " ").strip()
+    response = (
+        db.table("narratives")
+        .select(_WITH_COMPANIES)
+        .or_(f"title.ilike.*{safe}*,thesis.ilike.*{safe}*")
+        .order("updated_at", desc=True)
+        .limit(limit)
+        .execute()
+    )
+    return _rows_to_summaries(db, response.data)
+
+
 def list_for_company(db: Client, company_id: UUID) -> list[NarrativeSummary]:
     """Return the caller's narratives that involve a given company, newest first.
 

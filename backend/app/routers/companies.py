@@ -7,10 +7,11 @@ Bare-bones: no search and no hydration yet.
 
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, Query, status
 
 from app.auth import UserDbDep
-from app.models import Company, CompanyAttach, NarrativeSummary
+from app.models import Company, CompanyAttach, NarrativeSummary, ResolvedListing
+from app.providers.prices import PricesError
 from app.services import companies as service
 from app.services import narratives as narratives_service
 
@@ -61,6 +62,20 @@ async def get_company_by_symbol(
     if company is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "company not found")
     return company
+
+
+@router.get("/companies/resolve")
+async def resolve_companies(
+    db: UserDbDep,  # auth-gate only (external call, no DB), keeps the route protected
+    q: str = Query(min_length=1, description="Free text: ticker or company name"),
+) -> list[ResolvedListing]:
+    """Resolve free text to real listings via the external symbol search — how we
+    surface a company we don't have locally so the user can start its first
+    narrative. Nothing is persisted; attaching later creates the company row."""
+    try:
+        return service.resolve_external(q)
+    except PricesError as exc:
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc))
 
 
 @router.get("/companies/{company_id}")

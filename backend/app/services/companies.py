@@ -11,7 +11,8 @@ from uuid import UUID
 from supabase import Client
 
 from app import exchanges
-from app.models import Company, CompanyAttach
+from app.models import Company, CompanyAttach, ResolvedListing
+from app.providers import prices as prices_provider
 from app.services import narratives as narratives_service
 
 
@@ -114,6 +115,50 @@ def detach(db: Client, narrative_id: UUID, company_id: UUID) -> bool:
         .execute()
     )
     return len(response.data) > 0
+
+
+def search(db: Client, q: str, limit: int = 10) -> list[Company]:
+    """Search known companies by ticker or name (case-insensitive substring).
+    Companies are global, so this isn't user-scoped. Empty query -> []."""
+    term = q.strip()
+    if not term:
+        return []
+    safe = term.replace(",", " ").replace("(", " ").replace(")", " ").strip()
+    response = (
+        db.table("companies")
+        .select("*")
+        .or_(f"ticker.ilike.*{safe}*,name.ilike.*{safe}*")
+        .limit(limit)
+        .execute()
+    )
+    return [Company.model_validate(row) for row in response.data]
+
+
+def resolve_external(q: str, limit: int = 8) -> list[ResolvedListing]:
+    """Resolve free text to real listings via the external symbol search, mapping
+    each hit into our (ticker, MIC) model. Used to surface a company we don't have
+    locally so the user can start its first narrative. Deduped by (ticker, MIC)."""
+    hits = prices_provider.search_symbols(q, limit=limit)
+    seen: set[tuple[str, str]] = set()
+    out: list[ResolvedListing] = []
+    for hit in hits:
+        ticker, mic, meta = exchanges.from_yahoo(hit["symbol"], hit.get("exchange"))
+        key = (ticker, mic)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(
+            ResolvedListing(
+                ticker=ticker,
+                mic=mic,
+                exchange=meta["name"],
+                name=hit["name"],
+                currency=meta["currency"],
+                tier=meta["tier"],
+                has_price=exchanges.yahoo_symbol(ticker, mic) is not None,
+            )
+        )
+    return out
 
 
 def get(db: Client, company_id: UUID) -> Company | None:

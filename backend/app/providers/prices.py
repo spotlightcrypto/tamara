@@ -17,6 +17,7 @@ from app.config import settings
 
 _POLYGON_BASE = "https://api.polygon.io"
 _YAHOO_CHART = "https://query1.finance.yahoo.com/v8/finance/chart"
+_YAHOO_SEARCH = "https://query1.finance.yahoo.com/v1/finance/search"
 _UA = {"User-Agent": "Mozilla/5.0 (Tamara)"}
 _TIMEOUT = 30.0
 
@@ -67,6 +68,45 @@ def daily_history(yahoo_symbol: str, rng: str = "1y") -> list[tuple[date, float]
     for ts, close in zip(timestamps, closes):
         if close is not None:
             out.append((datetime.fromtimestamp(ts, tz=timezone.utc).date(), float(close)))
+    return out
+
+
+# --- SYMBOL SEARCH (keyless): resolve a query to real listings ----------------
+#
+# Yahoo's public search endpoint (no key) maps free text ("apple", "AAPL",
+# "barclays") to real equities across global exchanges — how we surface a company
+# we don't have locally yet so the user can start the first narrative for it.
+
+def search_symbols(q: str, limit: int = 8) -> list[dict]:
+    """Search Yahoo for equities matching `q`. Returns a list of raw quote dicts
+    with at least `symbol`, `exchange` (Yahoo code), and a name — equities only.
+    Empty list on no match. Never raises for "no results"; raises PricesError only
+    on transport/HTTP failure."""
+    if not q or not q.strip():
+        return []
+    params = {"q": q.strip(), "quotesCount": limit, "newsCount": 0}
+    try:
+        resp = httpx.get(_YAHOO_SEARCH, params=params, headers=_UA, timeout=_TIMEOUT)
+    except httpx.HTTPError as exc:
+        raise PricesError(f"request failed: {exc}") from exc
+    if resp.status_code != 200:
+        raise PricesError(f"HTTP {resp.status_code}: {resp.text[:200]}")
+
+    quotes = resp.json().get("quotes") or []
+    out: list[dict] = []
+    for quote in quotes:
+        if quote.get("quoteType") != "EQUITY":
+            continue  # skip ETFs, indices, futures, currencies for now
+        symbol = quote.get("symbol")
+        if not symbol:
+            continue
+        out.append(
+            {
+                "symbol": symbol,
+                "exchange": quote.get("exchange"),  # Yahoo exchange code, e.g. "NMS"
+                "name": quote.get("longname") or quote.get("shortname") or symbol,
+            }
+        )
     return out
 
 

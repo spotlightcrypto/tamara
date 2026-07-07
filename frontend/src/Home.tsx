@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api } from './lib/api'
 import { Header } from './Header'
 import { NarrativeCard } from './NarrativeCard'
+import { SearchBar } from './SearchBar'
 import { EmptyState, Loading } from './ui'
 import type { NarrativeWithCompanies } from './lib/types'
 
@@ -31,6 +32,10 @@ export function Home() {
         {/* Single-column content, left-aligned in the wider frame (right gutter
             reserved for a future rail). Creation lives in the header's + New. */}
         <div className="max-w-3xl">
+          <div className="mb-6">
+            <SearchBar />
+          </div>
+
           {error && <p className="mb-4 text-sm text-down">{error}</p>}
 
           <h2 className="font-display text-xl font-bold uppercase tracking-tight">Recent</h2>
