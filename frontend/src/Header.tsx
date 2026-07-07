@@ -1,9 +1,10 @@
 import { useState } from 'react'
-import { Link, NavLink } from 'react-router-dom'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 import { LogOut, Plus } from 'lucide-react'
 import { supabase } from './lib/supabase'
 import { Logo } from './Logo'
 import { IntakeModal } from './IntakeModal'
+import { SearchBar } from './SearchBar'
 
 const navItem = ({ isActive }: { isActive: boolean }) =>
   `border-2 border-ink px-2.5 py-1 text-xs font-bold uppercase tracking-wide ${
@@ -14,16 +15,24 @@ const navItem = ({ isActive }: { isActive: boolean }) =>
 // Single-column pages keep a narrower content column left-aligned inside it.
 export function Header({ maxW = 'max-w-5xl' }: { maxW?: string }) {
   const [creating, setCreating] = useState(false)
+  // Search lives in the nav globally — except on the home page, where it has its
+  // own prominent spot in the body.
+  const onHome = useLocation().pathname === '/'
 
   return (
     <>
       <div className="h-1.5 w-full border-b-2 border-ink bg-acid" />
       <header className="border-b-2 border-ink bg-surface">
-        <div className={`mx-auto flex ${maxW} items-center justify-between px-4 py-2.5`}>
-          <Link to="/">
+        <div className={`mx-auto flex ${maxW} items-center justify-between gap-3 px-4 py-2.5`}>
+          <Link to="/" className="shrink-0">
             <Logo />
           </Link>
-          <nav className="flex items-center gap-2">
+          {!onHome && (
+            <div className="min-w-0 flex-1 max-w-md">
+              <SearchBar />
+            </div>
+          )}
+          <nav className="flex shrink-0 items-center gap-2">
             {/* Primary action — create a narrative from anywhere. */}
             <button
               onClick={() => setCreating(true)}
