@@ -336,7 +336,9 @@ def get_draft(db: Client, draft_id: UUID) -> IntakeState:
     return _state_from_draft(_load_draft(db, draft_id))
 
 
-def finalize(db: Client, user_id: UUID, draft_id: UUID, proposal: Proposal) -> UUID:
+def finalize(
+    db: Client, user_id: UUID, draft_id: UUID, proposal: Proposal, is_public: bool = True
+) -> UUID:
     """Promote the (user-edited) proposal into a real narrative + items + companies,
     and mark the draft finalized. Idempotent on an already-finalized draft.
 
@@ -357,6 +359,7 @@ def finalize(db: Client, user_id: UUID, draft_id: UUID, proposal: Proposal) -> U
             thesis=proposal.thesis,
             body_md=proposal.body_md,
             positioning=proposal.positioning,
+            is_public=is_public,
         ),
     )
     nid = narrative.id

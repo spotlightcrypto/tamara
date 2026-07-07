@@ -146,16 +146,32 @@ def create_for_user(db: Client, user_id: UUID, data: NarrativeCreate) -> Narrati
         "thesis": data.thesis,
         "body_md": data.body_md,
         "positioning": data.positioning,
+        "is_public": data.is_public,
     }
     response = db.table("narratives").insert(payload).execute()
     # insert returns the inserted rows; we created exactly one.
     return _with_author(db, Narrative, response.data[0])
 
 
+def get(db: Client, narrative_id: UUID) -> Narrative | None:
+    """Return one narrative readable by the caller — their own (public or private)
+    or anyone's public one. RLS enforces the owner-or-public rule; we don't filter
+    by user_id here so public narratives are viewable. None if not visible/missing."""
+    response = (
+        db.table("narratives")
+        .select("*")
+        .eq("id", str(narrative_id))
+        .limit(1)
+        .execute()
+    )
+    if not response.data:
+        return None
+    return _with_author(db, Narrative, response.data[0])
+
+
 def get_for_user(db: Client, user_id: UUID, narrative_id: UUID) -> Narrative | None:
-    """Return one narrative the user owns, or None if it doesn't exist / isn't
-    theirs. Returning None (rather than raising) lets the router decide the HTTP
-    response — services stay HTTP-agnostic."""
+    """Return one narrative the user OWNS (used for write-path checks), or None.
+    Reads for display go through `get` so public narratives are visible."""
     response = (
         db.table("narratives")
         .select("*")

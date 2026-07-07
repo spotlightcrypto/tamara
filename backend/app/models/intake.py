@@ -139,6 +139,8 @@ class IntakeFinalize(BaseModel):
     """The user-edited proposal, accepted -> promote to a real narrative."""
 
     proposal: Proposal
+    # Visibility chosen on the finalize step (toggle in the generate modal).
+    is_public: bool = True
 
 
 class IntakeRegenerate(BaseModel):

@@ -7,6 +7,7 @@ export interface Narrative {
   body_md: string
   positioning: string | null
   is_active: boolean
+  is_public: boolean
   author_username: string | null
   created_at: string
   updated_at: string

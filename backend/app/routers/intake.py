@@ -79,7 +79,7 @@ async def finalize_intake(
     positioning) + companies + sources, and mark the draft finalized. Returns the
     new narrative id."""
     try:
-        narrative_id = service.finalize(db, user.id, draft_id, data.proposal)
+        narrative_id = service.finalize(db, user.id, draft_id, data.proposal, data.is_public)
     except DraftNotFound:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "draft not found")
     return {"narrative_id": str(narrative_id)}

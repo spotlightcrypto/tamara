@@ -19,6 +19,29 @@ def test_create_requires_a_title(client):
     assert client.post("/narratives", json={"thesis": "no title"}).status_code == 422
 
 
+def test_narratives_are_public_by_default(make_narrative):
+    n = make_narrative(title="Public by default")
+    assert n["is_public"] is True
+
+
+def test_create_can_be_private(client):
+    n = client.post(
+        "/narratives", json={"title": "Private draft", "is_public": False}
+    ).json()
+    assert n["is_public"] is False
+    # The owner can still read their own private narrative.
+    assert client.get(f"/narratives/{n['id']}").json()["is_public"] is False
+    client.delete(f"/narratives/{n['id']}")
+
+
+def test_patch_toggles_visibility(client, make_narrative):
+    n = make_narrative()
+    assert n["is_public"] is True
+    updated = client.patch(f"/narratives/{n['id']}", json={"is_public": False}).json()
+    assert updated["is_public"] is False
+    assert client.patch(f"/narratives/{n['id']}", json={"is_public": True}).json()["is_public"] is True
+
+
 def test_list_includes_created_narrative(client, make_narrative):
     n = make_narrative(title="Findable")
     ids = [item["id"] for item in client.get("/narratives").json()]

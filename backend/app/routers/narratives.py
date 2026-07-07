@@ -36,10 +36,11 @@ async def create_narrative(
 async def get_narrative(
     narrative_id: UUID, user: CurrentUserDep, db: UserDbDep
 ) -> Narrative:
-    """Fetch one narrative by id."""
-    narrative = service.get_for_user(db, user.id, narrative_id)
+    """Fetch one narrative by id — the caller's own (public or private) or anyone's
+    public narrative (RLS enforces owner-or-public)."""
+    narrative = service.get(db, narrative_id)
     if narrative is None:
-        # 404 for both "doesn't exist" and "not yours" — never reveal which.
+        # 404 for both "doesn't exist" and "not visible" — never reveal which.
         raise HTTPException(status.HTTP_404_NOT_FOUND, "narrative not found")
     return narrative
 

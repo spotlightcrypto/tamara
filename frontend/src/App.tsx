@@ -80,7 +80,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/profile" element={<Profile me={me} onUsernameChange={(u) => setMe({ ...me, username: u })} />} />
-        <Route path="/narratives/:id" element={<NarrativeDetail />} />
+        <Route path="/narratives/:id" element={<NarrativeDetail me={me} />} />
         <Route path="/companies/:symbol" element={<CompanyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

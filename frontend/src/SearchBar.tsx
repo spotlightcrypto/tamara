@@ -4,35 +4,58 @@ import { Search } from 'lucide-react'
 import { api } from './lib/api'
 import type { ResolvedListing, SearchResults } from './lib/types'
 
-// Home-page search: local matches (the caller's narratives + known companies)
-// with a debounced /search call, plus an on-demand "search all markets" that
-// resolves tickers we don't have locally so the user can start the first
-// narrative for them. Selecting any company routes to its page by slug.
+type Suggestion = {
+  key: string
+  slug: string
+  symbol: string
+  name: string
+  hasPrice: boolean
+}
+
+// Home-page search. Two sources, merged live as you type:
+//   - local (/search): the caller's narratives + companies already in Tamara
+//   - all markets (/companies/resolve): real listings from the symbol resolver
+// The resolver matters because local company names are often just the ticker, so
+// "core" wouldn't match CoreWeave locally — the resolver surfaces it. External
+// hits already present locally (by slug) are de-duped out. Selecting any company
+// routes to its page by slug (creating the first narrative if it's new to us).
 export function SearchBar() {
   const [q, setQ] = useState('')
   const [res, setRes] = useState<SearchResults | null>(null)
-  const [ext, setExt] = useState<ResolvedListing[] | null>(null)
-  const [extLoading, setExtLoading] = useState(false)
+  const [ext, setExt] = useState<ResolvedListing[]>([])
+  const [loading, setLoading] = useState(false)
   const [open, setOpen] = useState(false)
   const box = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
 
-  // Debounced local search. Reset any external results when the query changes.
+  // Debounced search: fire local + external independently so local (fast) shows
+  // immediately and the market suggestions fill in when they arrive.
   useEffect(() => {
     const term = q.trim()
-    setExt(null)
     if (!term) {
       setRes(null)
+      setExt([])
+      setLoading(false)
       return
     }
-    const t = setTimeout(async () => {
-      try {
-        setRes(await api.get<SearchResults>(`/search?q=${encodeURIComponent(term)}`))
-      } catch {
-        setRes(null)
-      }
+    let cancelled = false
+    setLoading(true)
+    const t = setTimeout(() => {
+      const enc = encodeURIComponent(term)
+      api
+        .get<SearchResults>(`/search?q=${enc}`)
+        .then((r) => !cancelled && setRes(r))
+        .catch(() => !cancelled && setRes(null))
+      api
+        .get<ResolvedListing[]>(`/companies/resolve?q=${enc}`)
+        .then((r) => !cancelled && setExt(r))
+        .catch(() => !cancelled && setExt([]))
+        .finally(() => !cancelled && setLoading(false))
     }, 250)
-    return () => clearTimeout(t)
+    return () => {
+      cancelled = true
+      clearTimeout(t)
+    }
   }, [q])
 
   // Close the dropdown on an outside click.
@@ -44,19 +67,6 @@ export function SearchBar() {
     return () => document.removeEventListener('mousedown', onDown)
   }, [])
 
-  const runExternal = async () => {
-    const term = q.trim()
-    if (!term) return
-    setExtLoading(true)
-    try {
-      setExt(await api.get<ResolvedListing[]>(`/companies/resolve?q=${encodeURIComponent(term)}`))
-    } catch {
-      setExt([])
-    } finally {
-      setExtLoading(false)
-    }
-  }
-
   const go = (path: string) => {
     setOpen(false)
     setQ('')
@@ -64,8 +74,26 @@ export function SearchBar() {
   }
 
   const term = q.trim()
-  const hasLocal = res && (res.narratives.length > 0 || res.companies.length > 0)
   const showPanel = open && term.length > 0
+
+  // Local companies first (they have a page + real data); then external listings
+  // not already shown locally.
+  const localCompanies = res?.companies ?? []
+  const localSlugs = new Set(localCompanies.map((c) => c.slug))
+  const companies: Suggestion[] = [
+    ...localCompanies.map((c) => ({
+      key: c.id,
+      slug: c.slug,
+      symbol: c.symbol,
+      name: c.name,
+      hasPrice: (c.tier ?? 3) <= 2,
+    })),
+    ...ext
+      .filter((r) => !localSlugs.has(r.slug))
+      .map((r) => ({ key: r.slug, slug: r.slug, symbol: r.symbol, name: r.name, hasPrice: r.has_price })),
+  ]
+  const narratives = res?.narratives ?? []
+  const empty = !loading && narratives.length === 0 && companies.length === 0
 
   return (
     <div ref={box} className="relative">
@@ -79,13 +107,14 @@ export function SearchBar() {
           placeholder="Search narratives & companies…"
           className="w-full bg-transparent font-mono text-sm outline-none placeholder:text-muted"
         />
+        {loading && <span className="shrink-0 font-mono text-[0.6rem] uppercase tracking-wide text-muted">…</span>}
       </div>
 
       {showPanel && (
         <div className="absolute z-40 mt-1.5 w-full border-2 border-ink bg-surface shadow-hard">
-          {res && res.narratives.length > 0 && (
+          {narratives.length > 0 && (
             <Section label="Narratives">
-              {res.narratives.map((n) => (
+              {narratives.map((n) => (
                 <Row key={n.id} onClick={() => go(`/narratives/${n.id}`)}>
                   <span className="truncate font-display font-bold">{n.title}</span>
                 </Row>
@@ -93,35 +122,13 @@ export function SearchBar() {
             </Section>
           )}
 
-          {res && res.companies.length > 0 && (
+          {companies.length > 0 && (
             <Section label="Companies">
-              {res.companies.map((c) => (
-                <Row key={c.id} onClick={() => go(`/companies/${c.slug}`)}>
+              {companies.map((c) => (
+                <Row key={c.key} onClick={() => go(`/companies/${c.slug}`)}>
                   <Tag>{c.symbol}</Tag>
                   <span className="truncate text-muted">{c.name}</span>
-                </Row>
-              ))}
-            </Section>
-          )}
-
-          {/* Nothing local, or the user wants to reach beyond their own data. */}
-          {ext === null ? (
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={runExternal}
-              disabled={extLoading}
-              className="flex w-full items-center gap-2 border-t-2 border-ink px-3 py-2 text-left font-mono text-xs font-bold uppercase tracking-wide hover:bg-acid disabled:opacity-60"
-            >
-              <Search size={13} strokeWidth={3} />
-              {extLoading ? 'Searching all markets…' : `Search all markets for “${term}”`}
-            </button>
-          ) : ext.length > 0 ? (
-            <Section label="All markets">
-              {ext.map((r) => (
-                <Row key={r.slug} onClick={() => go(`/companies/${r.slug}`)}>
-                  <Tag>{r.symbol}</Tag>
-                  <span className="truncate text-muted">{r.name}</span>
-                  {!r.has_price && (
+                  {!c.hasPrice && (
                     <span className="ml-auto shrink-0 font-mono text-[0.6rem] uppercase tracking-wide text-muted">
                       no price yet
                     </span>
@@ -129,16 +136,10 @@ export function SearchBar() {
                 </Row>
               ))}
             </Section>
-          ) : (
-            <p className="border-t-2 border-ink px-3 py-2 font-mono text-xs text-muted">
-              No listings found for “{term}”.
-            </p>
           )}
 
-          {!hasLocal && ext === null && (
-            <p className="border-t-2 border-ink px-3 py-2 font-mono text-[0.68rem] text-muted">
-              Nothing of yours matches — try all markets to start a new narrative.
-            </p>
+          {empty && (
+            <p className="px-3 py-2 font-mono text-xs text-muted">No matches for “{term}”.</p>
           )}
         </div>
       )}

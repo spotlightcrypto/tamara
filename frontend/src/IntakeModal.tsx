@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, ArrowRight, Plus, RefreshCw, X } from 'lucide-react'
+import { ArrowLeft, ArrowRight, Globe, Lock, Plus, RefreshCw, X } from 'lucide-react'
 import { api, ApiError } from './lib/api'
 import { MAX_COMPANIES, POSITIONING_LABELS } from './lib/types'
 import type { Answer, IntakeState, Proposal, ProposalCompany, Question } from './lib/types'
@@ -50,6 +50,7 @@ export function IntakeModal({
   const [proposal, setProposal] = useState<Proposal | null>(null)
   const [addCompany, setAddCompany] = useState('')
   const [regenInstructions, setRegenInstructions] = useState('')
+  const [isPublic, setIsPublic] = useState(true) // visibility chosen at finalize
   const [error, setError] = useState<{ reason?: string; message: string } | null>(null)
 
   // Advance the processing messages once — each shows for an equal slice of the
@@ -137,7 +138,7 @@ export function IntakeModal({
     try {
       const { narrative_id } = await api.post<{ narrative_id: string }>(
         `/narratives/intake/${draftId}/finalize`,
-        { proposal },
+        { proposal, is_public: isPublic },
       )
       navigate(`/narratives/${narrative_id}`)
     } catch (e) {
@@ -348,6 +349,33 @@ export function IntakeModal({
               <button onClick={regenerate} disabled={!regenInstructions.trim()} className={`mt-2 ${plainBtn}`}>
                 <RefreshCw size={14} strokeWidth={2.5} /> Regenerate
               </button>
+            </div>
+
+            {/* Visibility: public by default. Two segmented buttons so the choice
+                is explicit before creating. */}
+            <div className="flex items-center gap-2">
+              <Label>Visibility</Label>
+              <div className="flex border-2 border-ink">
+                <button
+                  onClick={() => setIsPublic(true)}
+                  className={`inline-flex items-center gap-1 px-2.5 py-1 font-mono text-xs font-bold uppercase tracking-wide ${
+                    isPublic ? 'bg-acid' : 'bg-surface hover:bg-acid/40'
+                  }`}
+                >
+                  <Globe size={12} strokeWidth={2.5} /> Public
+                </button>
+                <button
+                  onClick={() => setIsPublic(false)}
+                  className={`inline-flex items-center gap-1 border-l-2 border-ink px-2.5 py-1 font-mono text-xs font-bold uppercase tracking-wide ${
+                    !isPublic ? 'bg-acid' : 'bg-surface hover:bg-acid/40'
+                  }`}
+                >
+                  <Lock size={12} strokeWidth={2.5} /> Private
+                </button>
+              </div>
+              <span className="font-mono text-[0.62rem] text-muted">
+                {isPublic ? 'Anyone can find & read this.' : 'Only you can see this.'}
+              </span>
             </div>
 
             <div className="sticky bottom-0 -mx-4 -mb-4 flex gap-2 border-t-2 border-ink bg-surface px-4 py-3">
